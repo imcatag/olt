@@ -1,6 +1,8 @@
 from typing import List, Tuple
 from enum import Enum
 
+
+
 class Tetromino(Enum):
     I = 0
     J = 1
@@ -27,8 +29,50 @@ class Vector2Int:
     
     def __repr__(self) -> str:
         return f"({self.x}, {self.y})"
-    
 
+    def __eq__ (self, other) -> bool:
+        # if other is not Vector2Int or Tuple, return False
+        if not isinstance(other, (Vector2Int, tuple)):
+            return False
+        # if other is tuple, convert to Vector2Int
+        if isinstance(other, tuple):
+            other = Vector2Int(other[0], other[1])
+        return self.x == other.x and self.y == other.y
+    
+    def __hash__(self) -> int:
+        return hash((self.x, self.y))
+spawnPosition = Vector2Int(4, 19)
+
+class Piece:
+    def __init__(self, tetromino: Tetromino, rotation: int = 0, position: Vector2Int = spawnPosition):
+        self.tetromino = tetromino
+        self.rotation = rotation
+        self.position = position
+    
+    def __str__(self) -> str:
+        return f"{self.tetromino.name} at {self.position} rotated {self.rotation}"
+    
+    def __repr__(self) -> str:
+        return f"{self.tetromino.name} at {self.position} rotated {self.rotation}"
+    
+    def moveDown(self) -> 'Piece':
+        return Piece(self.tetromino, self.rotation, self.position + Vector2Int(0, -1))
+    
+    def moveLeft(self) -> 'Piece':
+        return Piece(self.tetromino, self.rotation, self.position + Vector2Int(-1, 0))
+
+    def moveRight(self) -> 'Piece':
+        return Piece(self.tetromino, self.rotation, self.position + Vector2Int(1, 0))
+    
+    def rotateClockwise(self, offset) -> 'Piece':
+        return Piece(self.tetromino, (self.rotation + 1) % 4, self.position + offset)
+    
+    def rotateCounterClockwise(self, offset) -> 'Piece':
+        return Piece(self.tetromino, (self.rotation - 1) % 4, self.position + offset)
+    
+    def flip180(self, offset) -> 'Piece':
+        return Piece(self.tetromino, (self.rotation + 2) % 4, self.position + offset)
+    
 
 Cells = {
     Tetromino.I: [

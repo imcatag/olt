@@ -1,6 +1,6 @@
 from data import *
 from enum import Enum
-
+from copy import deepcopy
 spawnPosition = Vector2Int(4, 19)
 
 class Node:
@@ -15,10 +15,10 @@ class Node:
     def __repr__(self):
         return f"Position: {self.position}, Rotation: {self.rotation}, Path: {self.path}"
 
-class Board:
+class BoardWithPiece:
     # size 10 x 40
     # has piece
-    def __init__(self, piece: Tetromino, cells = None):
+    def __init__(self, piece: Piece, cells = None):
         if cells is not None:
             self.cells = cells
         else:
@@ -30,13 +30,18 @@ class Board:
         output = ""
         for y in range(39, -1, -1):
             for x in range(10):
-                output += str(self.cells[y][x])
+                if(str(self.cells[y][x]) == "0"):
+                    output += "_"
+                elif(str(self.cells[y][x]) == "1"):
+                    output += "*"
+                else:
+                    output += "X"
             output += "\n"
         return output
     
     def isValid(self, position: Vector2Int, rotation: int):
         # check if piece is in bounds
-        for cell in Cells[self.piece][rotation]:
+        for cell in Cells[self.piece.tetromino][rotation]:
             posx = position.x + cell.x
             posy = position.y + cell.y
             if posx < 0 or posx >= 10:
@@ -200,20 +205,20 @@ class Board:
             # add valid neighbors to queue
             # down
             if self.isValid(position - Vector2Int(0, 1), rotation):
-                queue.append(Node(position - Vector2Int(0, 1), rotation, path + ["S"]))
+                queue.append(Node(position - Vector2Int(0, 1), rotation, path + [("S", Vector2Int(0, 0))]))
 
             # left 
             if self.isValid(position - Vector2Int(1, 0), rotation):
-                queue.append(Node(position - Vector2Int(1, 0), rotation, path + ["L"]))
+                queue.append(Node(position - Vector2Int(1, 0), rotation, path + [("L", Vector2Int(0, 0))]))
             
             # right
             if self.isValid(position + Vector2Int(1, 0), rotation):
-                queue.append(Node(position + Vector2Int(1, 0), rotation, path + ["R"]))
+                queue.append(Node(position + Vector2Int(1, 0), rotation, path + [("R", Vector2Int(0, 0))]))
 
             # rotate clockwise
             newrotation = (rotation + 1) % 4
 
-            newCells = Cells[self.piece][newrotation]
+            newCells = Cells[self.piece.tetromino][newrotation]
 
             offsetList = []
 
@@ -224,14 +229,14 @@ class Board:
 
             for offset in offsetList:
                 if self.isRotationValid(newCells, position + offset):
-                    queue.append(Node(position + offset, newrotation, path + ["CW"]))
+                    queue.append(Node(position + offset, newrotation, path + [("CW", offset)]))
                     break
 
             # rotate counterclockwise
 
             newrotation = (rotation - 1) % 4
 
-            newCells = Cells[self.piece][newrotation]
+            newCells = Cells[self.piece.tetromino][newrotation]
 
             offsetList = []
 
@@ -242,28 +247,33 @@ class Board:
 
             for offset in offsetList:
                 if self.isRotationValid(newCells, position + offset):
-                    queue.append(Node(position + offset, newrotation, path + ["CCW"]))
+                    queue.append(Node(position + offset, newrotation, path + [("CCW", offset)]))
                     break
 
             # flip 180
 
             newrotation = (rotation + 2) % 4
 
-            newCells = Cells[self.piece][newrotation]
+            newCells = Cells[self.piece.tetromino][newrotation]
 
             offsetList = Flips[rotation]
 
             for offset in offsetList:
                 if self.isRotationValid(newCells, position + offset):
-                    queue.append(Node(position + offset, newrotation, path + ["180"]))
+                    queue.append(Node(position + offset, newrotation, path + [("180", offset)]))
                     break
         
         return finalPlacements
     
-    
-def displayPath(board: Board, path: list):
-    print(board)
-    for move in path:
+
+def displayPath(board: BoardWithPiece, path: list):
+    for move, offset in path:
+        # clear current piece from board
+        for cell in Cells[board.piece.tetromino][board.piece.rotation]:
+            posx = board.piece.position.x + cell.x
+            posy = board.piece.position.y + cell.y
+            board.cells[posy][posx] = 0
+        # move piece
         if move == "S":
             board.piece = board.piece.moveDown()
         elif move == "L":
@@ -271,13 +281,20 @@ def displayPath(board: Board, path: list):
         elif move == "R":
             board.piece = board.piece.moveRight()
         elif move == "CW":
-            board.piece = board.piece.rotateClockwise()
+            board.piece = board.piece.rotateClockwise(offset)
         elif move == "CCW":
-            board.piece = board.piece.rotateCounterClockwise()
+            board.piece = board.piece.rotateCounterClockwise(offset)
         elif move == "180":
-            board.piece = board.piece.flip180()
+            board.piece = board.piece.flip180(offset)
+        # add piece to board
+        for cell in Cells[board.piece.tetromino][board.piece.rotation]:
+            posx = board.piece.position.x + cell.x
+            posy = board.piece.position.y + cell.y
+            board.cells[posy][posx] = 2
         print(board)
-board = Board(Tetromino.T)
+
+piece = Piece(Tetromino.T)
+board = BoardWithPiece(piece)
 # set board to have this at the bottom
 # 1001110000
 # 1000111111
@@ -290,4 +307,6 @@ board.cells[0] = line0
 board.cells[1] = line1
 board.cells[2] = line2
 placements = board.findPlacementsAsDict()
-print(placements)
+# print(sorted([i for i in placements.keys()], key = lambda x: [x[1], x[0].x, x[0].y]))
+
+displayPath(board, placements[((2, 1), 2)])
