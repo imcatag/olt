@@ -1,6 +1,7 @@
 from data import *
 from enum import Enum
 from copy import deepcopy
+from random import randint, choice
 spawnPosition = Vector2Int(4, 19)
 
 class Node:
@@ -15,10 +16,25 @@ class Node:
     def __repr__(self):
         return f"Position: {self.position}, Rotation: {self.rotation}, Path: {self.path}"
 
+class Placement:
+    def __init__(self, position: Vector2Int, rotation: int, path: list, linesCleared: int, tSpin: bool, tSpinMini: bool):
+        self.position = position
+        self.rotation = rotation
+        self.path = path
+        self.linesCleared = linesCleared
+        self.tSpin = tSpin
+        self.tSpinMini = tSpinMini
+
+    def __str__(self):
+        return f"Position: {self.position}, Rotation: {self.rotation}, Path: {self.path}"
+
+    def __repr__(self):
+        return f"Position: {self.position}, Rotation: {self.rotation}, Path: {self.path}"
+
 class BoardWithPiece:
     # size 10 x 40
     # has piece
-    def __init__(self, piece: Piece, cells = None):
+    def __init__(self, piece: Piece = Piece(choice(list(Tetromino))), cells = None):
         if cells is not None:
             self.cells = cells
         else:
@@ -26,6 +42,20 @@ class BoardWithPiece:
         self.piece = piece
 
     def __str__(self):
+        # should be upside down
+        output = ""
+        for y in range(19, -1, -1):
+            for x in range(10):
+                if(str(self.cells[y][x]) == "0"):
+                    output += "_"
+                elif(str(self.cells[y][x]) == "1"):
+                    output += "*"
+                else:
+                    output += "X"
+            output += "\n"
+        return output
+    
+    def __repr__(self):
         # should be upside down
         output = ""
         for y in range(39, -1, -1):
@@ -266,7 +296,59 @@ class BoardWithPiece:
         return finalPlacements
     
 
-def displayPath(board: BoardWithPiece, path: list):
+def nextState(board: BoardWithPiece, placement: Node):
+    board = deepcopy(board)
+    position, rotation = placement
+
+    fitness = 0
+    # set the piece
+    for cell in Cells[board.piece.tetromino][rotation]:
+        # if obsturcted, game over
+        posx = position.x + cell.x
+        posy = position.y + cell.y
+        if board.cells[posy][posx] != 0:
+            return board, -10000
+        board.cells[posy][posx] = 1
+    
+    # check if t spin or t spin mini
+     
+    # check for cleared lines
+    cntlines = 0
+    for y in range(39, -1, -1):
+        # print(board.cells[y])
+        if 0 not in board.cells[y]:
+            # clear line
+            board.cells.pop(y)
+            board.cells.insert(38, [0 for x in range(10)])
+            cntlines += 1
+
+    print(cntlines, "lines cleared")
+
+    if cntlines == 0:
+        fitness = -1
+
+    elif cntlines == 4:
+        fitness = 20
+    
+    else:
+        fitness = cntlines
+    
+    # check for all clear
+    
+    # b2b and combo
+    board.piece = Piece(choice(list(Tetromino)))
+    return board, fitness
+
+def displayPath(board1: BoardWithPiece, path: list):
+    board = deepcopy(board1)
+
+    print(path)
+
+    for cell in Cells[board.piece.tetromino][board.piece.rotation]:
+            posx = board.piece.position.x + cell.x
+            posy = board.piece.position.y + cell.y
+            board.cells[posy][posx] = 2
+    print(board)
     for move, offset in path:
         # clear current piece from board
         for cell in Cells[board.piece.tetromino][board.piece.rotation]:
@@ -293,20 +375,40 @@ def displayPath(board: BoardWithPiece, path: list):
             board.cells[posy][posx] = 2
         print(board)
 
-piece = Piece(Tetromino.T)
-board = BoardWithPiece(piece)
-# set board to have this at the bottom
-# 1001110000
-# 1000111111
-# 1101111111
-# this tests for T-Spin Double
-line2 = [1, 0, 0, 1, 1, 1, 0, 0, 0, 0]
-line1 = [1, 0, 0, 0, 1, 1, 1, 1, 1, 1]
-line0 = [1, 1, 0, 1, 1, 1, 1, 1, 1, 1]
-board.cells[0] = line0
-board.cells[1] = line1
-board.cells[2] = line2
-placements = board.findPlacementsAsDict()
-# print(sorted([i for i in placements.keys()], key = lambda x: [x[1], x[0].x, x[0].y]))
 
-displayPath(board, placements[((2, 1), 2)])
+
+# piece = Piece(Tetromino.T)
+# board = BoardWithPiece(piece)
+
+# # line6 = [1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
+# # line5 = [1, 1, 1, 0, 0, 0, 1, 1, 1, 1]
+# # line4 = [1, 1, 1, 0, 0, 1, 1, 1, 1, 1]
+# # line3 = [1, 1, 1, 0, 0, 0, 1, 1, 1, 1]
+# # line2 = [1, 1, 1, 1, 1, 0, 1, 1, 1, 1]
+# # line1 = [1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
+# # line0 = [1, 1, 1, 1, 1, 0, 1, 1, 1, 1]
+# # board.cells[0] = line0
+# # board.cells[1] = line1
+# # board.cells[2] = line2
+# # board.cells[3] = line3
+# # board.cells[4] = line4
+# # board.cells[5] = line5
+# # board.cells[6] = line6
+# placements = board.findPlacementsAsDict()
+# # print(sorted([i for i in placements.keys()], key = lambda x: [x[1], x[0].x, x[0].y]))
+
+# displayPath(board, placements[((5, 1), 3)])
+
+# board = nextState(board, ((5, 1), 3))
+board = BoardWithPiece()
+
+while True:
+    placements = board.findPlacementsAsDict()
+    print(board)
+    randomPlacement = choice(list(placements.keys()))
+    print(randomPlacement)
+
+    board, fitness = nextState(board, randomPlacement)
+    print(fitness)
+    if fitness == -10000:
+        break
