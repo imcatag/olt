@@ -1,10 +1,22 @@
 from data import *
 from enum import Enum
 from copy import deepcopy
-from random import randint, choice
+from random import randint, choice, shuffle
 spawnPosition = Vector2Int(4, 19)
 
-class Node:
+fitnessMultipliers = {'linesCleared': [0, 500, 500, 500, 10000], 'tSpin': 20, 'tSpinMini': 2, 'allClear': 40, 'b2b': 1.3, 'combo': 1, 'tooHigh': -10, 'gap': -600, 'spikiness' : -80}
+# b2b could have exponential impact on fitness (multiplier ^ b2b)
+
+defaultbag = [Tetromino.I, Tetromino.J, Tetromino.L, Tetromino.O, Tetromino.S, Tetromino.T, Tetromino.Z]
+randombag = []
+bags1k = []
+cnt = 0
+
+for i in range(1000):
+    shuffle(defaultbag)
+    bags1k.extend(deepcopy(defaultbag))
+
+class Node: 
     def __init__(self, position: Vector2Int, rotation: int, path: list, ):
         self.position = position
         self.rotation = rotation
@@ -301,20 +313,58 @@ def nextState(board: BoardWithPiece, placement: Node):
     position, rotation = placement
 
     fitness = 0
+
     # set the piece
     for cell in Cells[board.piece.tetromino][rotation]:
         # if obsturcted, game over
         posx = position.x + cell.x
         posy = position.y + cell.y
         if board.cells[posy][posx] != 0:
-            return board, -10000
+            return board, -2147000000
         board.cells[posy][posx] = 1
     
-    # check if t spin or t spin mini
      
+    # get max height
+    maxHeight = 0
+    for y in range(39, -1, -1):
+        if 1 in board.cells[y]:
+            maxHeight = y
+            break
+
+    # calculate board spikiness (diff between heights of adiacent columns)
+    spikiness = 0
+    forgiveOneWell = True
+    # get heights of first column
+    height1 = 0
+    height2 = 0
+    for y in range(39, -1, -1):
+        if board.cells[y][0] == 1:
+            height1 = y
+            break
+    
+    for x in range(1, 10):
+        for y in range(39, -1, -1):
+            if board.cells[y][x] == 1:
+                height2 = y
+                break
+        if abs(height1 - height2) > 2:
+            if forgiveOneWell:
+                forgiveOneWell = False
+            else:
+                spikiness += abs(height1 - height2)
+        height1 = height2
+
+    fitness += fitnessMultipliers['spikiness'] * spikiness
+    if maxHeight > 11:
+        fitness += fitnessMultipliers['tooHigh']
+    
+    # game over from height
+    if maxHeight > 23:
+        return board, -2147000000
+
     # check for cleared lines
     cntlines = 0
-    for y in range(39, -1, -1):
+    for y in range(maxHeight, -1, -1):
         # print(board.cells[y])
         if 0 not in board.cells[y]:
             # clear line
@@ -322,21 +372,37 @@ def nextState(board: BoardWithPiece, placement: Node):
             board.cells.insert(38, [0 for x in range(10)])
             cntlines += 1
 
-    print(cntlines, "lines cleared")
+    # print(cntlines, "lines cleared")
 
-    if cntlines == 0:
-        fitness = -1
+    fitness += fitnessMultipliers['linesCleared'][cntlines]
 
-    elif cntlines == 4:
-        fitness = 20
-    
-    else:
-        fitness = cntlines
     
     # check for all clear
+    if 1 not in board.cells[0]:
+        fitness += fitnessMultipliers['allClear']
+
+    # check if t spin or t spin mini
+
+    # get gaps
+    gaps = 0
     
+    # if a well is covered, add a point to gaps for each cell in the well
+
+    for x in range(10):
+        for y in range(40):
+            if board.cells[y][x] == 1:
+                # go down until you hit a 1
+                for y2 in range(y - 1, -1, -1):
+                    if board.cells[y2][x] == 0:
+                        gaps += 1
+                    else:
+                        break
+
+    fitness += fitnessMultipliers['gap'] * gaps
+
     # b2b and combo
-    board.piece = Piece(choice(list(Tetromino)))
+
+    board.piece = Piece(bags1k[cnt])
     return board, fitness
 
 def displayPath(board1: BoardWithPiece, path: list):
@@ -401,14 +467,22 @@ def displayPath(board1: BoardWithPiece, path: list):
 
 # board = nextState(board, ((5, 1), 3))
 board = BoardWithPiece()
-
 while True:
+    cnt += 1
     placements = board.findPlacementsAsDict()
     print(board)
-    randomPlacement = choice(list(placements.keys()))
-    print(randomPlacement)
-
-    board, fitness = nextState(board, randomPlacement)
+    bestplacement = None
+    fitness = -2147000000
+    for placement in placements.keys():
+        nextboard, nextfitness = nextState(board, placement)
+        if nextfitness >= fitness:
+            fitness = nextfitness
+            bestplacement = placement
+    print(bestplacement)
     print(fitness)
-    if fitness == -10000:
+    if fitness == -2147000000:
         break
+    board, _ = nextState(board, bestplacement)
+    
+
+print(cnt)
