@@ -12,9 +12,9 @@ randombag = []
 bags1k = []
 cnt = 0
 
-for i in range(1000):
-    shuffle(defaultbag)
-    bags1k.extend(deepcopy(defaultbag))
+# for i in range(1000):
+#     shuffle(defaultbag)
+#     bags1k.extend(deepcopy(defaultbag))
 
 class Node: 
     def __init__(self, position: Vector2Int, rotation: int, path: list, ):
@@ -466,23 +466,33 @@ def displayPath(board1: BoardWithPiece, path: list):
 # displayPath(board, placements[((5, 1), 3)])
 
 # board = nextState(board, ((5, 1), 3))
-board = BoardWithPiece()
-while True:
-    cnt += 1
-    placements = board.findPlacementsAsDict()
-    print(board)
-    bestplacement = None
-    fitness = -2147000000
-    for placement in placements.keys():
-        nextboard, nextfitness = nextState(board, placement)
-        if nextfitness >= fitness:
-            fitness = nextfitness
-            bestplacement = placement
-    print(bestplacement)
-    print(fitness)
-    if fitness == -2147000000:
-        break
-    board, _ = nextState(board, bestplacement)
+# board = BoardWithPiece()
+# while True:
+#     cnt += 1
+#     placements = board.findPlacementsAsDict()
+#     print(board)
+#     bestplacement = None
+#     fitness = -2147000000
+#     for placement in placements.keys():
+#         nextboard, nextfitness = nextState(board, placement)
+#         if nextfitness >= fitness:
+#             fitness = nextfitness
+#             bestplacement = placement
+#     print(bestplacement)
+#     print(fitness)
+#     if fitness == -2147000000:
+#         break
+#     board, _ = nextState(board, bestplacement)
     
 
-print(cnt)
+# print(cnt)
+
+
+# print all possible placements of I on empty board
+board = BoardWithPiece(Piece(Tetromino.T))
+placements = board.findPlacementsAsDict()
+print(len(placements))
+# for placement in placements.keys():
+#     print(placement)
+#     print(placements[placement])
+#     print()

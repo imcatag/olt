@@ -313,6 +313,7 @@ class GameState{
         Tetromino piece;
         Tetromino heldPiece;
         int linesCleared;
+        int score;
         queue<Tetromino> nextPieces;
 
         GameState(Board board, Tetromino piece, Tetromino heldPiece, int linesCleared, queue<Tetromino> nextPieces){
@@ -363,31 +364,59 @@ class GameState{
                 cout << "Just tried to find placements for a null piece\n";
                 return vector<Placement>();
             }
-            Placement start;
             
-            if(held){
-                start = Placement(piece, spawnPosition, 0);
-            }else{
-                vector<Move> path1;
-                path1.push_back(Move("H", Vector2Int(0,0)));
-                start = Placement(piece, spawnPosition, 0, path1);
+            
+            // get max height on board
+            int maxHeight = 0;
+
+            for(int x = 0; x < width; x++){
+                int height = 0;
+                for (int y = spawnPosition.y; y > 0; y--){
+                    if(this->board.board[x][y] == 1){
+                        maxHeight = y;
+                        break;
+                    }
+                }
             }
 
+            int optimalSpawnPosition = min(spawnPosition.y, maxHeight + 3);
+
+            vector<Move> path1;
+
+            if(held){
+                path1.push_back(Move("H", Vector2Int(0,0)));
+            }
+            
+            for(int i = optimalSpawnPosition; i < spawnPosition.y; i++){
+                path1.push_back(Move("S", Vector2Int(0,0)));
+            }
+
+            Placement start = Placement(piece, spawnPosition, 0, path1);
             vector<Placement> finalPlacements;
 
-            vector<vector<bool>> visited = vector<vector<bool>>(board.width, vector<bool>(board.height, false));
+            const int borderOffset = 4;
+            bool visited[4][width + borderOffset * 2][height + borderOffset * 2];
+            for(int i = 0; i < 4; i++){
+                for(int x = 0; x < width*2; x++){
+                    for(int y = 0; y < height*2; y++){
+                        visited[i][x][y] = false;
+                    }
+                }
+            }
+
             queue<Placement> queue;
             queue.push(start);
-
+            int whilecnt = 0;
             while(!queue.empty()){
+                whilecnt++;
                 auto currentPlacement = queue.front();
                 queue.pop();
 
-                if(visited[currentPlacement.position.x][currentPlacement.position.y]){
+                if(visited[currentPlacement.rotation][currentPlacement.position.x + borderOffset][currentPlacement.position.y + borderOffset]){
                     continue;
                 }
 
-                visited[currentPlacement.position.x][currentPlacement.position.y] = true;
+                visited[currentPlacement.rotation][currentPlacement.position.x + borderOffset][currentPlacement.position.y + borderOffset] = true;
 
                 auto newPlacement = currentPlacement;
                 // add to final placements if the piece cannot move down
@@ -431,8 +460,9 @@ class GameState{
                 }
 
                 for(auto offset : offsetList){
-                    newPlacement.position = currentPlacement.position + offset;
-                    if(isValid(piece, newPlacement.position, newRotation)){
+                    Vector2Int newPosition = currentPlacement.position + offset;  // Fix here
+                    if(isValid(piece, newPosition, newRotation)){
+                        newPlacement.position = newPosition;
                         newPlacement.rotation = newRotation;
                         newPlacement.path.push_back(Move("CW", offset));
                         queue.push(newPlacement);
@@ -453,8 +483,9 @@ class GameState{
                 }
 
                 for(auto offset : offsetList){
-                    newPlacement.position = currentPlacement.position + offset;
-                    if(isValid(piece, newPlacement.position, newRotation)){
+                    Vector2Int newPosition = currentPlacement.position + offset;  // Fix here
+                    if(isValid(piece, newPosition, newRotation)){
+                        newPlacement.position = newPosition;
                         newPlacement.rotation = newRotation;
                         newPlacement.path.push_back(Move("CCW", offset));
                         queue.push(newPlacement);
@@ -477,13 +508,20 @@ class GameState{
                     }
                 }
             }
-
+            cout << "While for: " << whilecnt << "\n";
             return finalPlacements;
         }
 
-        
 };
 
+GameState nextState(GameState currentState, Placement placement){
+    GameState newState = currentState;
+    newState.board.placePiece(Piece(placement.tetromino, placement.position, placement.rotation));
+    newState.piece = newState.nextPieces.front();
+    newState.nextPieces.pop();
+    newState.nextPieces.push(Tetromino(rand() % 7));
+    return newState;
+}
 
 
 int main()
@@ -492,7 +530,7 @@ int main()
     random_device rd;
     mt19937 g(rd());
     queue<Tetromino> bigQueue;
-    for(int i = 0; i < 10000; i++){
+    for(int i = 0; i < 1000; i++){
         auto newBag = defaultBag;
         shuffle(newBag.begin(), newBag.end(), g);
         for(auto tetromino : newBag){
@@ -502,12 +540,10 @@ int main()
     Tetromino startPiece = bigQueue.front();
     bigQueue.pop();
 
-    GameState gameState = GameState(Board(), startPiece, NULLTETROMINO, 0, bigQueue); 
+    GameState gameState = GameState(Board(width, height), startPiece, NULLTETROMINO, 0, bigQueue); 
     
     auto placements = gameState.findPlacements(gameState.piece);
-    for(auto placement : placements){
-        cout << placement.position << endl;
-    }
+    
     cout << placements.size() << endl;
     
     return 0;
