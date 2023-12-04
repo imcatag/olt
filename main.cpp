@@ -6,8 +6,6 @@
 #include <algorithm>
 using namespace std;
 
-
-
 enum Tetromino{
     I = 0,
     J = 1,
@@ -370,7 +368,6 @@ class GameState{
             int maxHeight = 0;
 
             for(int x = 0; x < width; x++){
-                int height = 0;
                 for (int y = spawnPosition.y; y > 0; y--){
                     if(this->board.board[x][y] == 1){
                         maxHeight = y;
@@ -379,7 +376,7 @@ class GameState{
                 }
             }
 
-            int optimalSpawnPosition = min(spawnPosition.y, maxHeight + 3);
+            Vector2Int optimalSpawnPosition = Vector2Int(spawnPosition.x, min(spawnPosition.y, maxHeight + 3));
 
             vector<Move> path1;
 
@@ -387,18 +384,21 @@ class GameState{
                 path1.push_back(Move("H", Vector2Int(0,0)));
             }
             
-            for(int i = optimalSpawnPosition; i < spawnPosition.y; i++){
+            for(int i = optimalSpawnPosition.y; i < spawnPosition.y; i++){
                 path1.push_back(Move("S", Vector2Int(0,0)));
             }
 
-            Placement start = Placement(piece, spawnPosition, 0, path1);
+            Placement start = Placement(piece, optimalSpawnPosition, 0, path1);
             vector<Placement> finalPlacements;
+
+            cout << "Start: " << start.position << " " << start.rotation << "\n";
 
             const int borderOffset = 4;
             bool visited[4][width + borderOffset * 2][height + borderOffset * 2];
+
             for(int i = 0; i < 4; i++){
-                for(int x = 0; x < width*2; x++){
-                    for(int y = 0; y < height*2; y++){
+                for(int x = 0; x < width + borderOffset * 2; x++){
+                    for(int y = 0; y < height + borderOffset * 2; y++){
                         visited[i][x][y] = false;
                     }
                 }
@@ -406,6 +406,7 @@ class GameState{
 
             queue<Placement> queue;
             queue.push(start);
+
             int whilecnt = 0;
             while(!queue.empty()){
                 whilecnt++;
@@ -420,7 +421,7 @@ class GameState{
 
                 auto newPlacement = currentPlacement;
                 // add to final placements if the piece cannot move down
-                if(!isValid(piece, currentPlacement.position + Vector2Int(0,1), currentPlacement.rotation)){
+                if(!isValid(piece, currentPlacement.position + Vector2Int(0,-1), currentPlacement.rotation)){
                     finalPlacements.push_back(currentPlacement);
                 }
                 else{ // move down if valid
@@ -538,6 +539,7 @@ int main()
         }
     }
     Tetromino startPiece = bigQueue.front();
+    cout << (Tetromino)startPiece << "\n";
     bigQueue.pop();
 
     GameState gameState = GameState(Board(width, height), startPiece, NULLTETROMINO, 0, bigQueue); 
@@ -545,6 +547,15 @@ int main()
     auto placements = gameState.findPlacements(gameState.piece);
     
     cout << placements.size() << endl;
+
+    for(auto placement : placements){
+        cout << placement.position << " " << placement.rotation << "\n";
+    }
+
+    // print cells for I in position (2, -3) 0
+    for(auto cell : Cells[Tetromino::I][0]){
+        cout << cell + Vector2Int(3, -1) << endl;
+    }
     
     return 0;
 }

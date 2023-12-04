@@ -489,10 +489,9 @@ def displayPath(board1: BoardWithPiece, path: list):
 
 
 # print all possible placements of I on empty board
-board = BoardWithPiece(Piece(Tetromino.T))
+board = BoardWithPiece(Piece(Tetromino.I))
 placements = board.findPlacementsAsDict()
 print(len(placements))
-# for placement in placements.keys():
-#     print(placement)
-#     print(placements[placement])
-#     print()
+for placement in placements.keys():
+    print(placement)
+    # print(placements[placement])
