@@ -674,8 +674,25 @@ int main()
 
     root->generateChildren();
 
-    for(auto child : root->children){
-        cout << child->gameState.board << "\n" << child->score << "\n";
+    while(true){
+        int maxScore = -1000000;
+        Node* bestNode = NULL;
+        for(auto child : root->children){
+            if(child->score > maxScore){
+                maxScore = child->score;
+                bestNode = child;
+            }
+        }
+        root = bestNode;
+        root->generateChildren();
+        cout << root->gameState.board << "\n";
+        cout << "Score: " << root->score << "\n";
+        cout << "Depth: " << root->depth << "\n";
+        cout << "Piece: " << (Tetromino)root->gameState.piece << "\n";
+        cout << "Held: " << (Tetromino)root->gameState.heldPiece << "\n";
+        cout << "Next: " << (Tetromino)root->gameState.nextPieces.front() << "\n";
+        cout << "Placements: " << root->children.size() << "\n";
+        cout << "-------------------------\n";
     }
     
     return 0;
