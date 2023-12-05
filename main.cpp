@@ -4,7 +4,10 @@
 #include <queue>
 #include <random>
 #include <algorithm>
+#include <map>
 using namespace std;
+
+const map<string, double> weights {{"0", 0}, {"1", -4}, {"2", -3}, {"3", -2}, {"4", 5}, {"halfHeight", -0.5}, {"quarterHeight", -0.75}, {"deepsetGap", -3}, {"gaps", -0.5}};
 
 enum Tetromino{
     I = 0,
@@ -280,11 +283,88 @@ class Board{
             this->board = board;
        }
 
-        void placePiece(Piece piece){
+        double placePieceAndEvaluate(Placement placement){
             for(int i = 0; i < 4; i++){
-                Vector2Int cell = piece.position + Cells[piece.tetromino][piece.rotation][i];
+                Vector2Int cell = placement.position + Cells[placement.tetromino][placement.rotation][i];
                 this->board[cell.x][cell.y] = 1;
             }
+
+            int score = 0;
+
+            int maxHeight = this->maxHeight(), halfHeight = this->height / 2, quarterHeight = this->height / 4;
+
+            int piecesPerColumn[this->width], deepestGap = 0;
+            bool shouldClear[this->height];
+
+            for(int i = 0; i < this->width; i++){
+                piecesPerColumn[i] = 0;
+            }
+
+            for(int i = 0; i < this->height; i++){
+                shouldClear[i] = true;
+            }
+
+            for (int y = maxHeight; y >= 0; y--) {
+                for (int x = 0; x < this->width; x++) {
+                    if (this->board[x][y] == 1) {
+
+                        piecesPerColumn[x] += 1;
+                        
+                        if (y > halfHeight) {
+                            score += weights.at("halfHeight");
+                        }
+                        else if (y > quarterHeight) {
+                            score += weights.at("quarterHeight");
+                        }
+                    }
+                    else{
+                        deepestGap = max(deepestGap, piecesPerColumn[x]);
+
+                        if(piecesPerColumn[x] > 0) {
+                            score += weights.at("gaps");
+                        }
+
+                        shouldClear[y] = false;
+                    }
+                }
+            }
+            score += weights.at("deepsetGap") * deepestGap;
+
+            // if piece is T and last move was a rotation, check for T-Spin
+
+            if(placement.tetromino == Tetromino::T && (placement.path.back().type == "CW" || placement.path.back().type == "CCW")){
+                
+            }
+            
+            // clear lines
+            int linesCleared = 0;
+            for(int y = maxHeight; y > 0; y--){
+                if(shouldClear[y]){
+                    linesCleared++;
+                    // remove line from board
+                    board.erase(board.begin() + y);
+                    // add new line to top
+                    board.insert(board.begin(), vector<int>(this->width, 0));
+                }
+            }
+
+            // add score for lines cleared
+            score += weights.at(to_string(linesCleared));
+
+            return score;
+        }
+
+        int maxHeight(){
+            int maxHeight = 0;
+            for(int x = 0; x < this->width; x++){
+                for(int y = this->height - 1; y > 0 ; y--){
+                    if(this->board[x][y] == 1){
+                        maxHeight = max(maxHeight, y);
+                        break;
+                    }
+                }
+            }
+            return maxHeight;
         }
 
         void removePiece(Piece piece){
@@ -310,15 +390,12 @@ class GameState{
         Board board;
         Tetromino piece;
         Tetromino heldPiece;
-        int linesCleared;
-        int score;
         queue<Tetromino> nextPieces;
 
-        GameState(Board board, Tetromino piece, Tetromino heldPiece, int linesCleared, queue<Tetromino> nextPieces){
+        GameState(Board board, Tetromino piece, Tetromino heldPiece, queue<Tetromino> nextPieces){
             this->board = board;
             this->piece = piece;
             this->heldPiece = heldPiece;
-            this->linesCleared = linesCleared;
             this->nextPieces = nextPieces;
         }
 
@@ -326,7 +403,6 @@ class GameState{
             this->board = Board();
             this->piece = Tetromino::I;
             this->heldPiece = NULLTETROMINO;
-            this->linesCleared = 0;
             this->nextPieces = queue<Tetromino>();
         }
 
@@ -365,16 +441,7 @@ class GameState{
             
             
             // get max height on board
-            int maxHeight = 0;
-
-            for(int x = 0; x < width; x++){
-                for (int y = spawnPosition.y; y > 0; y--){
-                    if(this->board.board[x][y] == 1){
-                        maxHeight = y;
-                        break;
-                    }
-                }
-            }
+            int maxHeight = this->board.maxHeight();
 
             Vector2Int optimalSpawnPosition = Vector2Int(spawnPosition.x, min(spawnPosition.y, maxHeight + 3));
 
@@ -515,14 +582,73 @@ class GameState{
 
 };
 
-GameState nextState(GameState currentState, Placement placement){
-    GameState newState = currentState;
-    newState.board.placePiece(Piece(placement.tetromino, placement.position, placement.rotation));
-    newState.piece = newState.nextPieces.front();
-    newState.nextPieces.pop();
-    newState.nextPieces.push(Tetromino(rand() % 7));
-    return newState;
-}
+struct Node{
+    double score;
+    int depth;
+    GameState gameState;
+    Node* parent;
+    vector<Node*> children;
+
+    Node(double score, int depth, GameState gameState, Node* parent){
+        this->depth = depth;
+        this->gameState = gameState;
+        this->parent = parent;
+        this->score = score;
+    }
+
+    void generateChildren(){
+        // clear children
+
+        this->children.clear();
+
+        if(this->gameState.nextPieces.empty()){
+            return;
+        }
+
+        vector<Placement> placements = this->gameState.findPlacements(this->gameState.piece);
+
+        for(auto placement : placements){
+            auto newGameState = this->gameState;
+            int eval = newGameState.board.placePieceAndEvaluate(placement);
+            newGameState.piece = newGameState.nextPieces.front();
+            newGameState.nextPieces.pop();
+            this->children.push_back(new Node(eval, this->depth + 1, newGameState, this));
+        }
+
+        if(this->gameState.heldPiece == NULLTETROMINO){
+            auto holdGameState = this->gameState;
+            holdGameState.heldPiece = holdGameState.piece;
+            holdGameState.piece = holdGameState.nextPieces.front();
+            holdGameState.nextPieces.pop();
+            placements = holdGameState.findPlacements(holdGameState.piece, true);
+
+            for(auto placement : placements){
+                auto newGameState = holdGameState;
+                int eval = newGameState.board.placePieceAndEvaluate(placement);
+                newGameState.piece = newGameState.nextPieces.front();
+                newGameState.nextPieces.pop();
+                this->children.push_back(new Node(eval, this->depth + 1, newGameState, this));
+            }
+            
+        }
+        else{
+            auto holdGameState = this->gameState;
+            auto temp = holdGameState.piece;
+            holdGameState.piece = holdGameState.heldPiece;
+            holdGameState.heldPiece = temp;
+            placements = holdGameState.findPlacements(holdGameState.piece, true);
+
+            for(auto placement : placements){
+                auto newGameState = holdGameState;
+                int eval = newGameState.board.placePieceAndEvaluate(placement);
+                newGameState.piece = newGameState.nextPieces.front();
+                newGameState.nextPieces.pop();
+                this->children.push_back(new Node(eval, this->depth + 1, newGameState, this));
+            }
+        }
+    }
+};
+
 
 
 int main()
@@ -542,19 +668,14 @@ int main()
     cout << (Tetromino)startPiece << "\n";
     bigQueue.pop();
 
-    GameState gameState = GameState(Board(width, height), startPiece, NULLTETROMINO, 0, bigQueue); 
+    GameState gameState = GameState(Board(width, height), startPiece, NULLTETROMINO, bigQueue); 
     
-    auto placements = gameState.findPlacements(gameState.piece);
-    
-    cout << placements.size() << endl;
+    Node* root = new Node(0, 0, gameState, NULL);
 
-    for(auto placement : placements){
-        cout << placement.position << " " << placement.rotation << "\n";
-    }
+    root->generateChildren();
 
-    // print cells for I in position (2, -3) 0
-    for(auto cell : Cells[Tetromino::I][0]){
-        cout << cell + Vector2Int(3, -1) << endl;
+    for(auto child : root->children){
+        cout << child->gameState.board << "\n" << child->score << "\n";
     }
     
     return 0;
