@@ -7,9 +7,11 @@
 #include <map>
 using namespace std;
 
-const map<string, double> weights {{"0", 0}, {"1", -4}, {"2", -3}, {"3", -2}, {"4", 5}, {"halfHeight", -0.5}, {"quarterHeight", -0.75}, {"deepsetGap", -3}, {"gaps", -0.5}};
+const map<string, double> weights {{"0", 0}, {"1", -4}, {"2", -3}, {"3", -2}, {"4", 5}, // normal line clears
+                                   {"halfHeight", -1}, {"quarterHeight", -2}, {"gaps", -1}, {"height", -0.5}, // height and gaps
+                                   {"TS0", 0}, {"TS1", 1}, {"TS2", 8}, {"TS3", 10}, {"TSm0", 0}, {"TSm1", -1}, {"TSm2", -1}}; // T-spins
 
-enum Tetromino{
+enum Piece{
     I = 0,
     J = 1,
     L = 2,
@@ -17,7 +19,7 @@ enum Tetromino{
     S = 4,
     T = 5,
     Z = 6,
-    NULLTETROMINO = 7
+    NULLPIECE = 7
 };
 
 class Vector2Int{
@@ -56,52 +58,52 @@ class Vector2Int{
 };
 
 const Vector2Int spawnPosition = Vector2Int(4, 19); 
-const int width = 10, height = 40;
+const int width = 10, height = 40, deathHeight = 22;
 
 vector<vector<Vector2Int>> Cells[8] = {
-    // Tetromino.I
+    // Piece.I
     {
         {Vector2Int(-1, 1), Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(2, 1)},
         {Vector2Int(1, -1), Vector2Int(1, 0), Vector2Int(1, 1), Vector2Int(1, 2)},
         {Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(2, 0)},
         {Vector2Int(0, -1), Vector2Int(0, 0), Vector2Int(0, 1), Vector2Int(0, 2)}
     },
-    // Tetromino.J
+    // Piece.J
     {
         {Vector2Int(-1, 1), Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0)},
         {Vector2Int(1, 1), Vector2Int(0, 1), Vector2Int(0, 0), Vector2Int(0, -1)},
         {Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(1, -1)},
         {Vector2Int(0, 1), Vector2Int(0, 0), Vector2Int(0, -1), Vector2Int(-1, -1)}
     },
-    // Tetromino.L
+    // Piece.L
     {
         {Vector2Int(1, 1), Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0)},
         {Vector2Int(1, -1), Vector2Int(0, -1), Vector2Int(0, 0), Vector2Int(0, 1)},
         {Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(-1, -1)},
         {Vector2Int(0, -1), Vector2Int(0, 0), Vector2Int(0, 1), Vector2Int(-1, 1)}
     },
-    // Tetromino.O
+    // Piece.O
     {
         {Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(0, 0), Vector2Int(1, 0)},
         {Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(0, 0), Vector2Int(1, 0)},
         {Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(0, 0), Vector2Int(1, 0)},
         {Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(0, 0), Vector2Int(1, 0)}
     },
-    // Tetromino.S
+    // Piece.S
     {
         {Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(-1, 0), Vector2Int(0, 0)},
         {Vector2Int(0, 1), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(1, -1)},
         {Vector2Int(-1, -1), Vector2Int(0, -1), Vector2Int(0, 0), Vector2Int(1, 0)},
         {Vector2Int(-1, 1), Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(0, -1)}
     },
-    // Tetromino.T
+    // Piece.T
     {
         {Vector2Int(0, 1), Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0)},
         {Vector2Int(1, 0), Vector2Int(0, 0), Vector2Int(0, 1), Vector2Int(0, -1)},
         {Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(0, -1)},
         {Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(0, 1), Vector2Int(0, -1)}
     },
-    // Tetromino.Z
+    // Piece.Z
     {
         {Vector2Int(-1, 1), Vector2Int(0, 1), Vector2Int(0, 0), Vector2Int(1, 0)},
         {Vector2Int(1, 1), Vector2Int(1, 0), Vector2Int(0, 0), Vector2Int(0, -1)},
@@ -139,93 +141,57 @@ vector<vector<Vector2Int>> Flips = {
     {Vector2Int(0, 0), Vector2Int(0, -1), Vector2Int(-1, -1), Vector2Int(1, -1), Vector2Int(-1, 0), Vector2Int(1, 0)},
     {Vector2Int(0, 0), Vector2Int(-1, 0), Vector2Int(-1, 2), Vector2Int(-1, 1), Vector2Int(0, 2), Vector2Int(0, 1)}
 };
-
-class Piece{
-    public:
-        Tetromino tetromino;
-        Vector2Int position;
-        int rotation;
-
-        Piece(Tetromino tetromino, Vector2Int position, int rotation){
-            this->tetromino = tetromino;
-            this->position = position;
-            this->rotation = rotation;
-        }
-
-        Piece(){
-            this->tetromino = I;
-            this->position = spawnPosition;
-            this->rotation = 0;
-        }
-
-        void moveLeft(){
-            this->position.x--;
-        }
-
-        void moveRight(){
-            this->position.x++;
-        }
-
-        void moveDown(){
-            this->position.y--;
-        }
-
-        void moveUp(){
-            this->position.y++;
-        }
-
-        void rotateClockwise(){
-            this->rotation = (this->rotation + 1) % 4;
-        }
-
-        void rotateCounterClockwise(){
-            this->rotation = (this->rotation + 3) % 4;
-        }
-
-        void rotate180(){
-            this->rotation = (this->rotation + 2) % 4;
-        }
-        
+vector<vector<Vector2Int>> TSpinFacingCorners = {
+    {Vector2Int(-1, 1), Vector2Int(1, 1)},
+    {Vector2Int(1, 1), Vector2Int(1, -1)},
+    {Vector2Int(1, -1), Vector2Int(-1, -1)},
+    {Vector2Int(-1, -1), Vector2Int(-1, 1)}
+};
+vector<Vector2Int> Diagonals = {
+    Vector2Int(-1, 1),
+    Vector2Int(1, 1),
+    Vector2Int(1, -1),
+    Vector2Int(-1, -1)
 };
 
 class Move{
     public:
         string type;
-        Vector2Int offset;
+        int offset;
 
-        Move(string type, Vector2Int offset){
+        Move(string type, int offset){
             this->type = type;
             this->offset = offset;
         }
         Move(string type){
             this->type = type;
-            this->offset = Vector2Int(0,0);
+            this->offset = 0;
         }
 };
 
 
 class Placement{
     public:
-        Tetromino tetromino;
+        Piece piece;
         Vector2Int position;
         int rotation;
         vector<Move> path;
 
-        Placement(Tetromino tetromino, Vector2Int position, int rotation){
-            this->tetromino = tetromino;
+        Placement(Piece piece, Vector2Int position, int rotation){
+            this->piece = piece;
             this->position = position;
             this->rotation = rotation;
         }
 
-        Placement(Tetromino tetromino, Vector2Int position, int rotation, vector<Move> path){
-            this->tetromino = tetromino;
+        Placement(Piece piece, Vector2Int position, int rotation, vector<Move> path){
+            this->piece = piece;
             this->position = position;
             this->rotation = rotation;
             this->path = path;
         }
 
         Placement(){
-            this->tetromino = I;
+            this->piece = I;
             this->position = spawnPosition;
             this->rotation = 0;
         }
@@ -283,73 +249,130 @@ class Board{
             this->board = board;
        }
 
-        double placePieceAndEvaluate(Placement placement){
+        double placePieceAndEvaluate(Placement placement, Piece nextPiece){
             for(int i = 0; i < 4; i++){
-                Vector2Int cell = placement.position + Cells[placement.tetromino][placement.rotation][i];
+                Vector2Int cell = placement.position + Cells[placement.piece][placement.rotation][i];
                 this->board[cell.x][cell.y] = 1;
             }
 
             int score = 0;
 
             int maxHeight = this->maxHeight(), halfHeight = this->height / 2, quarterHeight = this->height / 4;
+            
+            score += weights.at("height") * maxHeight;
 
-            int piecesPerColumn[this->width], deepestGap = 0;
-            bool shouldClear[this->height];
-
-            for(int i = 0; i < this->width; i++){
-                piecesPerColumn[i] = 0;
+            // if maxheight >= deathheight, return -1000000
+            if(maxHeight >= deathHeight){
+                return -1000000;
             }
 
-            for(int i = 0; i < this->height; i++){
+            bool shouldClear[this->height];
+
+            for(int i = 0; i <= maxHeight; i++){
                 shouldClear[i] = true;
             }
 
             for (int y = maxHeight; y >= 0; y--) {
                 for (int x = 0; x < this->width; x++) {
-                    if (this->board[x][y] == 1) {
+                    if (this->board[x][y] == 0) {
+                        shouldClear[y] = false;
+                    }
+                }
+            }
 
-                        piecesPerColumn[x] += 1;
-                        
+            // if piece is T and last move was a rotation, check for T-Spin
+            bool tspin = false, tspinmini = false;
+
+            if(placement.piece == Piece::T && (placement.path.back().type == "CW" || placement.path.back().type == "CCW")){
+                // check for fin and overhang T-spin : 
+                if((placement.rotation == 2 || placement.rotation == 0) && placement.path.back().offset == 4){
+                    tspin = true;
+                }
+                else{
+                    // get number of corners filled
+                    int cornersFilled = 0;
+                    for(auto offset : Diagonals){
+                        // if out of bounds, add to corners filled
+                        if(placement.position.x + offset.x < 0 || placement.position.x + offset.x >= this->width || placement.position.y + offset.y < 0 || placement.position.y + offset.y >= this->height){
+                            cornersFilled++;
+                        }
+                        else if(this->board[placement.position.x + offset.x][placement.position.y + offset.y] == 1){
+                            cornersFilled++;
+                        }
+                    }
+
+                    // get number of facing corners filled
+                    int facingCornersFilled = 0;
+                    for(auto offset : TSpinFacingCorners[placement.rotation]){
+                        if(this->board[placement.position.x + offset.x][placement.position.y + offset.y] == 1){
+                            facingCornersFilled++;
+                        }
+                    }
+
+                    if(cornersFilled >= 3){
+                        if(facingCornersFilled >= 2){
+                            tspin = true;
+                        }
+                        else{
+                            tspinmini = true;
+                        }   
+                    }
+                }
+            }
+            
+            // clear lines
+            int linesCleared = 0;
+            for(int y = maxHeight; y >= 0; y--){
+                if(shouldClear[y]){
+                    linesCleared++;
+                    // move all lines above down
+                    for(int i = y; i < this->height - 1; i++){
+                        for(int x = 0; x < this->width; x++){
+                            this->board[x][i] = this->board[x][i + 1];
+                        }
+                    }
+                }
+            }
+
+            for (int y = maxHeight - linesCleared; y >= 0; y--) {
+                for (int x = 0; x < this->width; x++) {
+                    if (this->board[x][y] == 1) {
                         if (y > halfHeight) {
                             score += weights.at("halfHeight");
                         }
                         else if (y > quarterHeight) {
                             score += weights.at("quarterHeight");
                         }
-                    }
-                    else{
-                        deepestGap = max(deepestGap, piecesPerColumn[x]);
 
-                        if(piecesPerColumn[x] > 0) {
-                            score += weights.at("gaps");
+                        // check for gaps // 1 above 0
+                        // make sure not to check if y is 0
+                        if (y > 0) {
+                            if (this->board[x][y - 1] == 0) {
+                                score += weights.at("gaps");
+                            }
                         }
 
-                        shouldClear[y] = false;
                     }
                 }
             }
-            score += weights.at("deepsetGap") * deepestGap;
-
-            // if piece is T and last move was a rotation, check for T-Spin
-
-            if(placement.tetromino == Tetromino::T && (placement.path.back().type == "CW" || placement.path.back().type == "CCW")){
-                
-            }
-            
-            // clear lines
-            int linesCleared = 0;
-            for(int y = maxHeight; y > 0; y--){
-                if(shouldClear[y]){
-                    linesCleared++;
-                    // remove line from board
-                    board.erase(board.begin() + y);
-                    // add new line to top
-                    board.insert(board.begin(), vector<int>(this->width, 0));
+            // if spawn of next piece is blocked, return -1000000
+            for(int i = 0; i < 4; i++){
+                Vector2Int cell = Vector2Int(spawnPosition.x, spawnPosition.y) + Cells[nextPiece][0][i];
+                if(this->board[cell.x][cell.y] == 1){
+                    return -1000000;
                 }
             }
 
-            // add score for lines cleared
-            score += weights.at(to_string(linesCleared));
+            if(tspin){
+                score += weights.at("TS" + to_string(linesCleared));
+            }
+            else if (tspinmini){
+                score += weights.at("TSm" + to_string(linesCleared));
+            }
+
+            else{
+                score += weights.at(to_string(linesCleared));
+            }
 
             return score;
         }
@@ -367,13 +390,6 @@ class Board{
             return maxHeight;
         }
 
-        void removePiece(Piece piece){
-            for(int i = 0; i < 4; i++){
-                Vector2Int cell = piece.position + Cells[piece.tetromino][piece.rotation][i];
-                this->board[cell.x][cell.y] = 0;
-            }
-        }
-
         friend ostream& operator<<(ostream& os, const Board& board){
             for(int y = board.height - 1; y >= 0; y--){
                 for(int x = 0; x < board.width; x++){
@@ -388,11 +404,11 @@ class Board{
 class GameState{
     public:
         Board board;
-        Tetromino piece;
-        Tetromino heldPiece;
-        queue<Tetromino> nextPieces;
+        Piece piece;
+        Piece heldPiece;
+        queue<Piece> nextPieces;
 
-        GameState(Board board, Tetromino piece, Tetromino heldPiece, queue<Tetromino> nextPieces){
+        GameState(Board board, Piece piece, Piece heldPiece, queue<Piece> nextPieces){
             this->board = board;
             this->piece = piece;
             this->heldPiece = heldPiece;
@@ -401,14 +417,14 @@ class GameState{
 
         GameState(){
             this->board = Board();
-            this->piece = Tetromino::I;
-            this->heldPiece = NULLTETROMINO;
-            this->nextPieces = queue<Tetromino>();
+            this->piece = Piece::I;
+            this->heldPiece = NULLPIECE;
+            this->nextPieces = queue<Piece>();
         }
 
         bool isValid(Placement placement){
             for(int i = 0; i < 4; i++){
-                Vector2Int cell = placement.position + Cells[placement.tetromino][placement.rotation][i];
+                Vector2Int cell = placement.position + Cells[placement.piece][placement.rotation][i];
                 if(cell.x < 0 || cell.x >= this->board.width || cell.y < 0 || cell.y >= this->board.height){
                     return false;
                 }
@@ -419,7 +435,7 @@ class GameState{
             return true;
         }
 
-        bool isValid(Tetromino piece, Vector2Int position, int rotation){
+        bool isValid(Piece piece, Vector2Int position, int rotation){
             for(int i = 0; i < 4; i++){
                 Vector2Int cell = position + Cells[piece][rotation][i];
                 if(cell.x < 0 || cell.x >= this->board.width || cell.y < 0 || cell.y >= this->board.height){
@@ -432,9 +448,9 @@ class GameState{
             return true;
         }
 
-        vector<Placement> findPlacements(Tetromino piece, bool held = false){
+        vector<Placement> findPlacements(Piece piece, bool held = false){
 
-            if(piece == NULLTETROMINO){
+            if(piece == NULLPIECE){
                 cout << "Just tried to find placements for a null piece\n";
                 return vector<Placement>();
             }
@@ -442,17 +458,17 @@ class GameState{
             
             // get max height on board
             int maxHeight = this->board.maxHeight();
-
+            
             Vector2Int optimalSpawnPosition = Vector2Int(spawnPosition.x, min(spawnPosition.y, maxHeight + 3));
 
             vector<Move> path1;
 
             if(held){
-                path1.push_back(Move("H", Vector2Int(0,0)));
+                path1.push_back(Move("H", 0));
             }
             
             for(int i = optimalSpawnPosition.y; i < spawnPosition.y; i++){
-                path1.push_back(Move("S", Vector2Int(0,0)));
+                path1.push_back(Move("S", 0));
             }
 
             Placement start = Placement(piece, optimalSpawnPosition, 0, path1);
@@ -493,7 +509,7 @@ class GameState{
                 }
                 else{ // move down if valid
                     newPlacement.moveDown();
-                    newPlacement.path.push_back(Move("S", Vector2Int(0,0)));
+                    newPlacement.path.push_back(Move("S", 0));
                     queue.push(newPlacement);
                 }
                 
@@ -501,7 +517,7 @@ class GameState{
                 // move left
                 if(isValid(piece, currentPlacement.position + Vector2Int(-1,0), currentPlacement.rotation)){
                     newPlacement.moveLeft();
-                    newPlacement.path.push_back(Move("L", Vector2Int(0,0)));
+                    newPlacement.path.push_back(Move("L", 0));
                     queue.push(newPlacement);
                 }
 
@@ -509,7 +525,7 @@ class GameState{
                 // move right
                 if(isValid(piece, currentPlacement.position + Vector2Int(1,0), currentPlacement.rotation)){
                     newPlacement.moveRight();
-                    newPlacement.path.push_back(Move("R", Vector2Int(0,0)));
+                    newPlacement.path.push_back(Move("R", 0));
                     queue.push(newPlacement);
                 }
 
@@ -520,19 +536,32 @@ class GameState{
 
                 vector<Vector2Int> offsetList;
 
-                if(piece == Tetromino::I){
+                if(piece == Piece::I){
                     offsetList = WallKicksI[currentPlacement.rotation];
                 }
                 else{
                     offsetList = WallKicksJLOSTZ[currentPlacement.rotation];
                 }
 
-                for(auto offset : offsetList){
-                    Vector2Int newPosition = currentPlacement.position + offset;  // Fix here
+                // for(auto offset : offsetList){
+                //     Vector2Int newPosition = currentPlacement.position + offset;  // Fix here
+                //     if(isValid(piece, newPosition, newRotation)){
+                //         newPlacement.position = newPosition;
+                //         newPlacement.rotation = newRotation;
+                //         newPlacement.path.push_back(Move("CW", offset));
+                //         queue.push(newPlacement);
+                //         break;
+                //     }
+                // }
+
+                // rewrite for loop to use index
+
+                for(long long unsigned int i = 0; i < offsetList.size(); i++){
+                    Vector2Int newPosition = currentPlacement.position + offsetList[i];
                     if(isValid(piece, newPosition, newRotation)){
                         newPlacement.position = newPosition;
                         newPlacement.rotation = newRotation;
-                        newPlacement.path.push_back(Move("CW", offset));
+                        newPlacement.path.push_back(Move("CW", i));
                         queue.push(newPlacement);
                         break;
                     }
@@ -543,19 +572,30 @@ class GameState{
                 newRotation = (currentPlacement.rotation + 3) % 4;
                 newCells = Cells[piece][newRotation];
 
-                if(piece == Tetromino::I){
+                if(piece == Piece::I){
                     offsetList = CounterWallKicksI[currentPlacement.rotation];
                 }
                 else{
                     offsetList = CounterWallKicksJLOSTZ[currentPlacement.rotation];
                 }
 
-                for(auto offset : offsetList){
-                    Vector2Int newPosition = currentPlacement.position + offset;  // Fix here
+                // for(auto offset : offsetList){
+                //     Vector2Int newPosition = currentPlacement.position + offset;  // Fix here
+                //     if(isValid(piece, newPosition, newRotation)){
+                //         newPlacement.position = newPosition;
+                //         newPlacement.rotation = newRotation;
+                //         newPlacement.path.push_back(Move("CCW", offset));
+                //         queue.push(newPlacement);
+                //         break;
+                //     }
+                // }
+
+                for(long long unsigned int i = 0; i < offsetList.size(); i++){
+                    Vector2Int newPosition = currentPlacement.position + offsetList[i];
                     if(isValid(piece, newPosition, newRotation)){
                         newPlacement.position = newPosition;
                         newPlacement.rotation = newRotation;
-                        newPlacement.path.push_back(Move("CCW", offset));
+                        newPlacement.path.push_back(Move("CCW", i));
                         queue.push(newPlacement);
                         break;
                     }
@@ -566,11 +606,22 @@ class GameState{
                 newRotation = (currentPlacement.rotation + 2) % 4;
                 newCells = Cells[piece][newRotation];
 
-                for(auto offset : Flips[currentPlacement.rotation]){
-                    newPlacement.position = currentPlacement.position + offset;
-                    if(isValid(piece, newPlacement.position, newRotation)){
+                // for(auto offset : Flips[currentPlacement.rotation]){
+                //     newPlacement.position = currentPlacement.position + offset;
+                //     if(isValid(piece, newPlacement.position, newRotation)){
+                //         newPlacement.rotation = newRotation;
+                //         newPlacement.path.push_back(Move("180", offset));
+                //         queue.push(newPlacement);
+                //         break;
+                //     }
+                // }
+
+                for(long long unsigned int i = 0; i < offsetList.size(); i++){
+                    Vector2Int newPosition = currentPlacement.position + offsetList[i];
+                    if(isValid(piece, newPosition, newRotation)){
+                        newPlacement.position = newPosition;
                         newPlacement.rotation = newRotation;
-                        newPlacement.path.push_back(Move("180", offset));
+                        newPlacement.path.push_back(Move("180", i));
                         queue.push(newPlacement);
                         break;
                     }
@@ -609,13 +660,14 @@ struct Node{
 
         for(auto placement : placements){
             auto newGameState = this->gameState;
-            int eval = newGameState.board.placePieceAndEvaluate(placement);
-            newGameState.piece = newGameState.nextPieces.front();
+            auto nextPiece = newGameState.nextPieces.front();
+            int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece);
+            newGameState.piece = nextPiece;
             newGameState.nextPieces.pop();
             this->children.push_back(new Node(eval, this->depth + 1, newGameState, this));
         }
 
-        if(this->gameState.heldPiece == NULLTETROMINO){
+        if(this->gameState.heldPiece == NULLPIECE){
             auto holdGameState = this->gameState;
             holdGameState.heldPiece = holdGameState.piece;
             holdGameState.piece = holdGameState.nextPieces.front();
@@ -624,8 +676,9 @@ struct Node{
 
             for(auto placement : placements){
                 auto newGameState = holdGameState;
-                int eval = newGameState.board.placePieceAndEvaluate(placement);
-                newGameState.piece = newGameState.nextPieces.front();
+                auto nextPiece = newGameState.nextPieces.front();
+                int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece);
+                newGameState.piece = nextPiece;
                 newGameState.nextPieces.pop();
                 this->children.push_back(new Node(eval, this->depth + 1, newGameState, this));
             }
@@ -640,8 +693,9 @@ struct Node{
 
             for(auto placement : placements){
                 auto newGameState = holdGameState;
-                int eval = newGameState.board.placePieceAndEvaluate(placement);
-                newGameState.piece = newGameState.nextPieces.front();
+                auto nextPiece = newGameState.nextPieces.front();
+                int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece);
+                newGameState.piece = nextPiece;
                 newGameState.nextPieces.pop();
                 this->children.push_back(new Node(eval, this->depth + 1, newGameState, this));
             }
@@ -653,29 +707,29 @@ struct Node{
 
 int main()
 {
-    vector<Tetromino> defaultBag = {I, J, L, O, S, T, Z};
+    vector<Piece> defaultBag = {I, J, L, O, S, T, Z};
     random_device rd;
     mt19937 g(rd());
-    queue<Tetromino> bigQueue;
+    queue<Piece> bigQueue;
     for(int i = 0; i < 1000; i++){
         auto newBag = defaultBag;
         shuffle(newBag.begin(), newBag.end(), g);
-        for(auto tetromino : newBag){
-            bigQueue.push(tetromino);
+        for(auto piece : newBag){
+            bigQueue.push(piece);
         }
     }
-    Tetromino startPiece = bigQueue.front();
-    cout << (Tetromino)startPiece << "\n";
+    Piece startPiece = bigQueue.front();
+    cout << (Piece)startPiece << "\n";
     bigQueue.pop();
 
-    GameState gameState = GameState(Board(width, height), startPiece, NULLTETROMINO, bigQueue); 
+    GameState gameState = GameState(Board(width, height), startPiece, NULLPIECE, bigQueue); 
     
     Node* root = new Node(0, 0, gameState, NULL);
 
     root->generateChildren();
 
     while(true){
-        int maxScore = -1000000;
+        double maxScore = -100000000;
         Node* bestNode = NULL;
         for(auto child : root->children){
             if(child->score > maxScore){
@@ -688,9 +742,9 @@ int main()
         cout << root->gameState.board << "\n";
         cout << "Score: " << root->score << "\n";
         cout << "Depth: " << root->depth << "\n";
-        cout << "Piece: " << (Tetromino)root->gameState.piece << "\n";
-        cout << "Held: " << (Tetromino)root->gameState.heldPiece << "\n";
-        cout << "Next: " << (Tetromino)root->gameState.nextPieces.front() << "\n";
+        cout << "Piece: " << (Piece)root->gameState.piece << "\n";
+        cout << "Held: " << (Piece)root->gameState.heldPiece << "\n";
+        cout << "Next: " << (Piece)root->gameState.nextPieces.front() << "\n";
         cout << "Placements: " << root->children.size() << "\n";
         cout << "-------------------------\n";
     }
