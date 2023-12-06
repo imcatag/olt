@@ -5,11 +5,16 @@
 #include <random>
 #include <algorithm>
 #include <map>
+#include <chrono>
+#include <deque>
+#include <memory>
 using namespace std;
 
-const map<string, double> weights {{"0", 0}, {"1", -4}, {"2", -3}, {"3", -2}, {"4", 5}, // normal line clears
-                                   {"halfHeight", -1}, {"quarterHeight", -2}, {"gaps", -1}, {"height", -0.5}, // height and gaps
-                                   {"TS0", 0}, {"TS1", 1}, {"TS2", 8}, {"TS3", 10}, {"TSm0", 0}, {"TSm1", -1}, {"TSm2", -1}}; // T-spins
+const map<string, double> weights{
+    {"0", 0}, {"1", -2}, {"2", -1.5}, {"3", -1}, {"4", 3.5}, // normal line clears
+    {"halfHeight", -1.5}, {"quarterHeight", -5}, {"gaps", -1.5}, {"height", -0.4}, {"covered", -0.2}, {"spikiness", -8}, // height and gaps
+    {"TS0", 0}, {"TS1", 1}, {"TS2", 4}, {"TS3", 6}, {"TSm0", 0}, {"TSm1", -1.5}, {"TSm2", -1}
+    }; // T-spins
 
 enum Piece{
     I = 0,
@@ -236,14 +241,12 @@ class Board{
             this->height = height;
             this->board = vector<vector<int>>(width, vector<int>(height, 0));
         }
-
         Board(){
             this->width = 10;
             this->height = 40;
             this->board = vector<vector<int>>(this->width, vector<int>(this->height, 0));
         }
-
-       Board(int width, int height, vector<vector<int>> board){
+        Board(int width, int height, vector<vector<int>> board){
             this->width = width;
             this->height = height;
             this->board = board;
@@ -334,27 +337,73 @@ class Board{
                 }
             }
 
+            bool found1[width];
+            for(int i = 0; i < width; i++){
+                found1[i] = false;
+            }
+
             for (int y = maxHeight - linesCleared; y >= 0; y--) {
                 for (int x = 0; x < this->width; x++) {
                     if (this->board[x][y] == 1) {
+                        found1[x] = true;
+                        
                         if (y > halfHeight) {
                             score += weights.at("halfHeight");
                         }
                         else if (y > quarterHeight) {
                             score += weights.at("quarterHeight");
                         }
-
-                        // check for gaps // 1 above 0
-                        // make sure not to check if y is 0
-                        if (y > 0) {
-                            if (this->board[x][y - 1] == 0) {
-                                score += weights.at("gaps");
-                            }
+                    }
+                    else{
+                        if(found1[x]){
+                            score += weights.at("gaps");
                         }
-
                     }
                 }
             }
+
+            int found0[width], cover = 0;
+            for(int i = 0; i < width; i++){
+                found0[i] = 0;
+            }
+
+            for(int y = 0; y < maxHeight - linesCleared; y++){
+                for(int x = 0; x < this->width; x++){
+                    if(this->board[x][y] == 0){
+                        found0[x]++;
+                    }
+                    else{
+                        cover += found0[x];
+                    }
+                }
+            }
+
+            score += weights.at("covered") * cover;
+
+            int spikiness = 0, prev = 0;
+
+            // prev is height of first column
+            for(int y = 0; y < this->height; y++){
+                if(this->board[0][y] == 1){
+                    prev = y;
+                    break;
+                }
+            }
+
+            for(int x = 1; x < this->width; x++){
+                int height = 0;
+                for(int y = 0; y < this->height; y++){
+                    if(this->board[x][y] == 1){
+                        height = y;
+                        break;
+                    }
+                }
+                spikiness += abs(height - prev);
+                prev = height;
+            }
+
+            score += weights.at("spikiness") * spikiness;
+
             // if spawn of next piece is blocked, return -1000000
             for(int i = 0; i < 4; i++){
                 Vector2Int cell = Vector2Int(spawnPosition.x, spawnPosition.y) + Cells[nextPiece][0][i];
@@ -393,7 +442,12 @@ class Board{
         friend ostream& operator<<(ostream& os, const Board& board){
             for(int y = board.height - 1; y >= 0; y--){
                 for(int x = 0; x < board.width; x++){
-                    os << board.board[x][y];
+                    if(board.board[x][y] == 1){
+                        os << "#";
+                    }
+                    else{
+                        os << "_";
+                    }
                 }
                 os << endl;
             }
@@ -474,7 +528,7 @@ class GameState{
             Placement start = Placement(piece, optimalSpawnPosition, 0, path1);
             vector<Placement> finalPlacements;
 
-            cout << "Start: " << start.position << " " << start.rotation << "\n";
+            // cout << "Start: " << start.position << " " << start.rotation << "\n";
 
             const int borderOffset = 4;
             bool visited[4][width + borderOffset * 2][height + borderOffset * 2];
@@ -627,13 +681,15 @@ class GameState{
                     }
                 }
             }
-            cout << "While for: " << whilecnt << "\n";
+            // cout << "While for: " << whilecnt << "\n";
             return finalPlacements;
         }
 
 };
 
-struct Node{
+int destructorCalls = 0;
+
+struct Node {
     double score;
     int depth;
     GameState gameState;
@@ -645,6 +701,13 @@ struct Node{
         this->gameState = gameState;
         this->parent = parent;
         this->score = score;
+    }
+
+    ~Node(){
+        //
+        destructorCalls++;
+        if(destructorCalls % 1000 == 0)
+        cout << "Node deleted -- " << destructorCalls << "\n";
     }
 
     void generateChildren(){
@@ -703,8 +766,6 @@ struct Node{
     }
 };
 
-
-
 int main()
 {
     vector<Piece> defaultBag = {I, J, L, O, S, T, Z};
@@ -726,28 +787,61 @@ int main()
     
     Node* root = new Node(0, 0, gameState, NULL);
 
-    root->generateChildren();
+    deque<Node*> queue;
+
+    queue.push_back(root);
 
     while(true){
-        double maxScore = -100000000;
-        Node* bestNode = NULL;
-        for(auto child : root->children){
-            if(child->score > maxScore){
-                maxScore = child->score;
-                bestNode = child;
+        // for 0.25 seconds, generate children recursively, using a BFS queue
+        auto start = chrono::high_resolution_clock::now();
+        Node* bestNode;
+        double bestScore = -10000000;
+        int currentDepth = queue.front()->depth;
+        while(!queue.empty()){
+            Node* current = queue.front();
+            queue.pop_front();
+            if(current->depth >= currentDepth + 3){
+                // delete
+                delete(current);
+                continue;
+            }
+            // if eval of current node is better than best node, set best node to current node
+            if(current->score > bestScore && current != root){
+                bestNode = current;
+                bestScore = current->score;
+            }
+
+            current->generateChildren();
+
+            for(auto child : current->children){
+                queue.push_back(child);
+            }
+
+            auto end = chrono::high_resolution_clock::now();
+            auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
+            if(duration.count() > 1000){
+                break;
             }
         }
+
+        while(bestNode->parent != root){
+            bestNode = bestNode->parent;
+        }
+
+        // print best node
+        cout << "Best node: " << bestNode->score << "\n";
+        cout << "Depth: " << bestNode->depth << "\n";
+        cout << "Board: " << "\n";
+        cout << bestNode->gameState.board << "\n";
+        
+        // set queue for next step
+        
         root = bestNode;
-        root->generateChildren();
-        cout << root->gameState.board << "\n";
-        cout << "Score: " << root->score << "\n";
-        cout << "Depth: " << root->depth << "\n";
-        cout << "Piece: " << (Piece)root->gameState.piece << "\n";
-        cout << "Held: " << (Piece)root->gameState.heldPiece << "\n";
-        cout << "Next: " << (Piece)root->gameState.nextPieces.front() << "\n";
-        cout << "Placements: " << root->children.size() << "\n";
-        cout << "-------------------------\n";
+        queue.clear();
+        queue.push_back(root);
+        
     }
+    
     
     return 0;
 }
