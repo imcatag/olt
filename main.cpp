@@ -7,12 +7,14 @@
 #include <map>
 #include <chrono>
 #include <deque>
-#include <memory>
+#include <unordered_set>
+#include <mutex>
+
 using namespace std;
 
 const map<string, double> weights{
-    {"0", 0}, {"1", -2}, {"2", -1.5}, {"3", -1}, {"4", 3.5}, // normal line clears
-    {"halfHeight", -1.5}, {"quarterHeight", -5}, {"gaps", -1.5}, {"height", -0.4}, {"covered", -0.2}, {"spikiness", -8}, // height and gaps
+    {"0", 0}, {"1", -6}, {"2", -4}, {"3", -3}, {"4", 3.5}, // normal line clears
+    {"halfHeight", -2}, {"quarterHeight", -5}, {"gaps", -3.5}, {"height", -0.4}, {"covered", -0.2}, {"spikiness", -1.2}, // height and gaps
     {"TS0", 0}, {"TS1", 1}, {"TS2", 4}, {"TS3", 6}, {"TSm0", 0}, {"TSm1", -1.5}, {"TSm2", -1}
     }; // T-spins
 
@@ -392,13 +394,15 @@ class Board{
 
             for(int x = 1; x < this->width; x++){
                 int height = 0;
-                for(int y = 0; y < this->height; y++){
+                for(int y = maxHeight; y >= 0; y--){
                     if(this->board[x][y] == 1){
                         height = y;
                         break;
                     }
                 }
-                spikiness += abs(height - prev);
+                if (abs(height - prev) > 1) {
+                    spikiness += abs(height - prev) - 1;
+                }
                 prev = height;
             }
 
@@ -474,6 +478,19 @@ class GameState{
             this->piece = Piece::I;
             this->heldPiece = NULLPIECE;
             this->nextPieces = queue<Piece>();
+        }
+        
+        friend bool operator==(const GameState& gameState1, const GameState& gameState2){
+            bool check1 = gameState1.board.board == gameState2.board.board && gameState1.piece == gameState2.piece && gameState1.heldPiece == gameState2.heldPiece;
+            // check first 4 pieces in nextPieces
+            bool check2 = true;
+            for(int i = 0; i < 4; i++){
+                if(gameState1.nextPieces.front() != gameState2.nextPieces.front()){
+                    check2 = false;
+                    break;
+                }
+            }
+            return check1 && check2;
         }
 
         bool isValid(Placement placement){
@@ -687,84 +704,119 @@ class GameState{
 
 };
 
+template<>
+struct std::hash<GameState>{
+    size_t operator()(const GameState& gameState) const {
+        size_t seed = 0;
+        for(int x = 0; x < gameState.board.width; x++){
+            for(int y = 0; y < gameState.board.height; y++){
+                seed ^= gameState.board.board[x][y] + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            }
+        }
+        seed ^= gameState.piece + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= gameState.heldPiece + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= gameState.nextPieces.front() + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        return seed;
+    }
+};
+
 int destructorCalls = 0;
 
 struct Node {
     double score;
     int depth;
     GameState gameState;
-    Node* parent;
-    vector<Node*> children;
+    int parentIndex;
+    vector<int> childIndexes;
 
-    Node(double score, int depth, GameState gameState, Node* parent){
+    Node(double score, int depth, GameState gameState, int parentIndex){
         this->depth = depth;
         this->gameState = gameState;
-        this->parent = parent;
+        this->parentIndex = parentIndex;
         this->score = score;
     }
 
-    ~Node(){
-        //
-        destructorCalls++;
-        if(destructorCalls % 1000 == 0)
-        cout << "Node deleted -- " << destructorCalls << "\n";
+    // operator ==
+    bool operator==(const Node& other){
+        return this->gameState.board.board == other.gameState.board.board && this->gameState.piece == other.gameState.piece && this->gameState.heldPiece == other.gameState.heldPiece && this->gameState.nextPieces == other.gameState.nextPieces;
     }
 
-    void generateChildren(){
-        // clear children
+    void generateChildren(int currentIndex);
+};
 
-        this->children.clear();
+vector<Node> nodes;
+unordered_set<GameState> visitedStates;
 
-        if(this->gameState.nextPieces.empty()){
-            return;
-        }
+void Node::generateChildren(int currentIndex){
+    // clear children
 
-        vector<Placement> placements = this->gameState.findPlacements(this->gameState.piece);
+    this->childIndexes.clear();
+
+    if(this->gameState.nextPieces.empty()){
+        return;
+    }
+
+    vector<Placement> placements = this->gameState.findPlacements(this->gameState.piece);
+
+    for(auto placement : placements){
+        auto newGameState = this->gameState;
+        auto nextPiece = newGameState.nextPieces.front();
+        int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece);
+        newGameState.piece = nextPiece;
+        newGameState.nextPieces.pop();
+        nodes.push_back(Node(eval, this->depth + 1, newGameState, currentIndex));
+        this->childIndexes.push_back(nodes.size() - 1);
+    }
+
+    if(this->gameState.heldPiece == NULLPIECE){
+        auto holdGameState = this->gameState;
+        holdGameState.heldPiece = holdGameState.piece;
+        holdGameState.piece = holdGameState.nextPieces.front();
+        holdGameState.nextPieces.pop();
+        placements = holdGameState.findPlacements(holdGameState.piece, true);
 
         for(auto placement : placements){
-            auto newGameState = this->gameState;
+            auto newGameState = holdGameState;
             auto nextPiece = newGameState.nextPieces.front();
             int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece);
             newGameState.piece = nextPiece;
             newGameState.nextPieces.pop();
-            this->children.push_back(new Node(eval, this->depth + 1, newGameState, this));
+            nodes.push_back(Node(eval, this->depth + 1, newGameState,currentIndex));
+            this->childIndexes.push_back(nodes.size() - 1);
         }
+        
+    }
+    else{
+        auto holdGameState = this->gameState;
+        auto temp = holdGameState.piece;
+        holdGameState.piece = holdGameState.heldPiece;
+        holdGameState.heldPiece = temp;
+        placements = holdGameState.findPlacements(holdGameState.piece, true);
 
-        if(this->gameState.heldPiece == NULLPIECE){
-            auto holdGameState = this->gameState;
-            holdGameState.heldPiece = holdGameState.piece;
-            holdGameState.piece = holdGameState.nextPieces.front();
-            holdGameState.nextPieces.pop();
-            placements = holdGameState.findPlacements(holdGameState.piece, true);
-
-            for(auto placement : placements){
-                auto newGameState = holdGameState;
-                auto nextPiece = newGameState.nextPieces.front();
-                int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece);
-                newGameState.piece = nextPiece;
-                newGameState.nextPieces.pop();
-                this->children.push_back(new Node(eval, this->depth + 1, newGameState, this));
-            }
-            
-        }
-        else{
-            auto holdGameState = this->gameState;
-            auto temp = holdGameState.piece;
-            holdGameState.piece = holdGameState.heldPiece;
-            holdGameState.heldPiece = temp;
-            placements = holdGameState.findPlacements(holdGameState.piece, true);
-
-            for(auto placement : placements){
-                auto newGameState = holdGameState;
-                auto nextPiece = newGameState.nextPieces.front();
-                int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece);
-                newGameState.piece = nextPiece;
-                newGameState.nextPieces.pop();
-                this->children.push_back(new Node(eval, this->depth + 1, newGameState, this));
-            }
+        for(auto placement : placements){
+            auto newGameState = holdGameState;
+            auto nextPiece = newGameState.nextPieces.front();
+            int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece);
+            newGameState.piece = nextPiece;
+            newGameState.nextPieces.pop();
+            nodes.push_back(Node(eval, this->depth + 1, newGameState, currentIndex));
+            this->childIndexes.push_back(nodes.size() - 1);
         }
     }
-};
+}
+
+double bestScore = -10000000;
+int bestNodeIndex;
+mutex mutexForBestScore;
+
+void updateBest(int newScore, int newNodeIndex) {
+    lock_guard<mutex> lock(mutexForBestScore);
+    
+    if (newScore > bestScore) {
+        bestScore = newScore;
+        bestNodeIndex = newNodeIndex; 
+    }
+}
 
 int main()
 {
@@ -785,60 +837,76 @@ int main()
 
     GameState gameState = GameState(Board(width, height), startPiece, NULLPIECE, bigQueue); 
     
-    Node* root = new Node(0, 0, gameState, NULL);
+    Node root = Node(0, 0, gameState, 0);
 
-    deque<Node*> queue;
+    nodes.push_back(root);
 
-    queue.push_back(root);
+    // deque<int> queue;
+    // lambda function to compare nodes from index
+    auto cmp = [](int index1, int index2) { return nodes[index1].score < nodes[index2].score; };
+    priority_queue<int, vector<int>, decltype(cmp)> queue(cmp);
+
+    queue.push(0);
 
     while(true){
         // for 0.25 seconds, generate children recursively, using a BFS queue
         auto start = chrono::high_resolution_clock::now();
-        Node* bestNode;
-        double bestScore = -10000000;
-        int currentDepth = queue.front()->depth;
+        bestScore = -10000000;
+        int currentDepth = nodes[queue.top()].depth;
+        int whilecnt = 0;
         while(!queue.empty()){
-            Node* current = queue.front();
-            queue.pop_front();
-            if(current->depth >= currentDepth + 3){
-                // delete
-                delete(current);
+            whilecnt++;
+            int currentIndex = queue.top();
+            Node current = nodes[currentIndex];
+            queue.pop();
+            if(current.depth >= currentDepth + 3 || visitedStates.find(current.gameState) != visitedStates.end()){
                 continue;
             }
+            visitedStates.insert(current.gameState);
             // if eval of current node is better than best node, set best node to current node
-            if(current->score > bestScore && current != root){
-                bestNode = current;
-                bestScore = current->score;
+            if(current.score > bestScore && current.depth != nodes[0].depth){
+                updateBest(current.score, currentIndex);
             }
 
-            current->generateChildren();
+            current.generateChildren(currentIndex);
 
-            for(auto child : current->children){
-                queue.push_back(child);
+            for(auto childIndex : current.childIndexes){
+                queue.push(childIndex);
             }
 
             auto end = chrono::high_resolution_clock::now();
             auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-            if(duration.count() > 1000){
+            if(duration.count() > 250){ // 4 pieces per second
                 break;
             }
         }
+        cout << "While for: " << whilecnt << "\n";
+        // while(bestNode->parent != root){
+        //     bestNode = bestNode->parent;
+        // }
 
-        while(bestNode->parent != root){
-            bestNode = bestNode->parent;
+        Node bestNode = nodes[bestNodeIndex];
+        while(bestNode.parentIndex != 0){
+            bestNode = nodes[bestNode.parentIndex];
         }
 
         // print best node
-        cout << "Best node: " << bestNode->score << "\n";
-        cout << "Depth: " << bestNode->depth << "\n";
+        cout << "Best node: " << bestNode.score << "\n";
+        cout << "Depth: " << bestNode.depth << "\n";
         cout << "Board: " << "\n";
-        cout << bestNode->gameState.board << "\n";
+        cout << bestNode.gameState.board << "\n";
         
         // set queue for next step
         
         root = bestNode;
-        queue.clear();
-        queue.push_back(root);
+        queue = priority_queue<int, vector<int>, decltype(cmp)>(cmp);
+        queue.push(0);
+
+        // clear nodes
+        nodes.clear();
+        nodes.push_back(root);
+
+        visitedStates.clear();
         
     }
     
