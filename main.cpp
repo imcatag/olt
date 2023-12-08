@@ -13,8 +13,8 @@
 using namespace std;
 
 const map<string, double> weights{
-    {"0", 0}, {"1", -6}, {"2", -4}, {"3", -3}, {"4", 3.5}, // normal line clears
-    {"halfHeight", -2}, {"quarterHeight", -5}, {"gaps", -3.5}, {"height", -0.4}, {"covered", -0.2}, {"spikiness", -1.2}, // height and gaps
+    {"0", 0}, {"1", -4}, {"2", -3}, {"3", -1}, {"4", 3.5}, // normal line clears
+    {"halfHeight", -2}, {"quarterHeight", -5}, {"gaps", -3.5}, {"height", -0.4}, {"covered", -0.2}, {"spikiness", -0.5}, // height and gaps
     {"TS0", 0}, {"TS1", 1}, {"TS2", 4}, {"TS3", 6}, {"TSm0", 0}, {"TSm1", -1.5}, {"TSm2", -1}
     }; // T-spins
 
@@ -400,9 +400,7 @@ class Board{
                         break;
                     }
                 }
-                if (abs(height - prev) > 1) {
-                    spikiness += abs(height - prev) - 1;
-                }
+                spikiness += abs(height - prev) ;
                 prev = height;
             }
 
@@ -761,7 +759,8 @@ void Node::generateChildren(int currentIndex){
     for(auto placement : placements){
         auto newGameState = this->gameState;
         auto nextPiece = newGameState.nextPieces.front();
-        int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece);
+        // eval should add to score
+        int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece) + this->score;
         newGameState.piece = nextPiece;
         newGameState.nextPieces.pop();
         nodes.push_back(Node(eval, this->depth + 1, newGameState, currentIndex));
@@ -778,7 +777,7 @@ void Node::generateChildren(int currentIndex){
         for(auto placement : placements){
             auto newGameState = holdGameState;
             auto nextPiece = newGameState.nextPieces.front();
-            int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece);
+            int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece) + this->score;
             newGameState.piece = nextPiece;
             newGameState.nextPieces.pop();
             nodes.push_back(Node(eval, this->depth + 1, newGameState,currentIndex));
@@ -796,7 +795,7 @@ void Node::generateChildren(int currentIndex){
         for(auto placement : placements){
             auto newGameState = holdGameState;
             auto nextPiece = newGameState.nextPieces.front();
-            int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece);
+            int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece) + this->score;
             newGameState.piece = nextPiece;
             newGameState.nextPieces.pop();
             nodes.push_back(Node(eval, this->depth + 1, newGameState, currentIndex));
@@ -859,7 +858,7 @@ int main()
             int currentIndex = queue.top();
             Node current = nodes[currentIndex];
             queue.pop();
-            if(current.depth >= currentDepth + 3 || visitedStates.find(current.gameState) != visitedStates.end()){
+            if(current.depth >= currentDepth + 5 || visitedStates.find(current.gameState) != visitedStates.end()){
                 continue;
             }
             visitedStates.insert(current.gameState);
@@ -876,7 +875,7 @@ int main()
 
             auto end = chrono::high_resolution_clock::now();
             auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-            if(duration.count() > 250){ // 4 pieces per second
+            if(duration.count() > 334){ // 4 pieces per second
                 break;
             }
         }
@@ -899,6 +898,7 @@ int main()
         // set queue for next step
         
         root = bestNode;
+        root.score = 0;
         queue = priority_queue<int, vector<int>, decltype(cmp)>(cmp);
         queue.push(0);
 
