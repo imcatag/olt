@@ -9,14 +9,16 @@
 #include <deque>
 #include <unordered_set>
 #include <mutex>
-
+#include <thread>
 using namespace std;
 
 const map<string, double> weights{
-    {"0", 0}, {"1", -4}, {"2", -3}, {"3", -1}, {"4", 3.5}, // normal line clears
+    {"0", 0}, {"1", 0}, {"2", 0}, {"3", 0}, {"4", 3.5}, // normal line clears
     {"halfHeight", -2}, {"quarterHeight", -5}, {"gaps", -3.5}, {"height", -0.4}, {"covered", -0.2}, {"spikiness", -0.5}, // height and gaps
     {"TS0", 0}, {"TS1", 1}, {"TS2", 4}, {"TS3", 6}, {"TSm0", 0}, {"TSm1", -1.5}, {"TSm2", -1}
     }; // T-spins
+
+
 
 enum Piece{
     I = 0,
@@ -400,7 +402,8 @@ class Board{
                         break;
                     }
                 }
-                spikiness += abs(height - prev) ;
+                if(abs(height - prev) > 1)
+                    spikiness += abs(height - prev) - 1;
                 prev = height;
             }
 
@@ -556,14 +559,14 @@ class GameState{
                 }
             }
 
-            queue<Placement> queue;
-            queue.push(start);
+            queue<Placement> gameQueue;
+            gameQueue.push(start);
 
             int whilecnt = 0;
-            while(!queue.empty()){
+            while(!gameQueue.empty()){
                 whilecnt++;
-                auto currentPlacement = queue.front();
-                queue.pop();
+                auto currentPlacement = gameQueue.front();
+                gameQueue.pop();
 
                 if(visited[currentPlacement.rotation][currentPlacement.position.x + borderOffset][currentPlacement.position.y + borderOffset]){
                     continue;
@@ -579,7 +582,7 @@ class GameState{
                 else{ // move down if valid
                     newPlacement.moveDown();
                     newPlacement.path.push_back(Move("S", 0));
-                    queue.push(newPlacement);
+                    gameQueue.push(newPlacement);
                 }
                 
                 newPlacement = currentPlacement;
@@ -587,7 +590,7 @@ class GameState{
                 if(isValid(piece, currentPlacement.position + Vector2Int(-1,0), currentPlacement.rotation)){
                     newPlacement.moveLeft();
                     newPlacement.path.push_back(Move("L", 0));
-                    queue.push(newPlacement);
+                    gameQueue.push(newPlacement);
                 }
 
                 newPlacement = currentPlacement;
@@ -595,7 +598,7 @@ class GameState{
                 if(isValid(piece, currentPlacement.position + Vector2Int(1,0), currentPlacement.rotation)){
                     newPlacement.moveRight();
                     newPlacement.path.push_back(Move("R", 0));
-                    queue.push(newPlacement);
+                    gameQueue.push(newPlacement);
                 }
 
                 // rotate clockwise
@@ -631,7 +634,7 @@ class GameState{
                         newPlacement.position = newPosition;
                         newPlacement.rotation = newRotation;
                         newPlacement.path.push_back(Move("CW", i));
-                        queue.push(newPlacement);
+                        gameQueue.push(newPlacement);
                         break;
                     }
                 }
@@ -665,7 +668,7 @@ class GameState{
                         newPlacement.position = newPosition;
                         newPlacement.rotation = newRotation;
                         newPlacement.path.push_back(Move("CCW", i));
-                        queue.push(newPlacement);
+                        gameQueue.push(newPlacement);
                         break;
                     }
                 }
@@ -691,7 +694,7 @@ class GameState{
                         newPlacement.position = newPosition;
                         newPlacement.rotation = newRotation;
                         newPlacement.path.push_back(Move("180", i));
-                        queue.push(newPlacement);
+                        gameQueue.push(newPlacement);
                         break;
                     }
                 }
@@ -739,19 +742,19 @@ struct Node {
         return this->gameState.board.board == other.gameState.board.board && this->gameState.piece == other.gameState.piece && this->gameState.heldPiece == other.gameState.heldPiece && this->gameState.nextPieces == other.gameState.nextPieces;
     }
 
-    void generateChildren(int currentIndex);
+    vector<Node> generateChildren(int currentIndex);
 };
 
 vector<Node> nodes;
 unordered_set<GameState> visitedStates;
 
-void Node::generateChildren(int currentIndex){
+vector<Node> Node::generateChildren(int currentIndex){
     // clear children
-
+    vector<Node> ans;
     this->childIndexes.clear();
 
     if(this->gameState.nextPieces.empty()){
-        return;
+        return ans;
     }
 
     vector<Placement> placements = this->gameState.findPlacements(this->gameState.piece);
@@ -763,8 +766,9 @@ void Node::generateChildren(int currentIndex){
         int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece) + this->score;
         newGameState.piece = nextPiece;
         newGameState.nextPieces.pop();
-        nodes.push_back(Node(eval, this->depth + 1, newGameState, currentIndex));
-        this->childIndexes.push_back(nodes.size() - 1);
+        // nodes.push_back(Node(eval, this->depth + 1, newGameState, currentIndex));
+        ans.push_back(Node(eval, this->depth + 1, newGameState, currentIndex));
+        // this->childIndexes.push_back(nodes.size() - 1);
     }
 
     if(this->gameState.heldPiece == NULLPIECE){
@@ -780,8 +784,9 @@ void Node::generateChildren(int currentIndex){
             int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece) + this->score;
             newGameState.piece = nextPiece;
             newGameState.nextPieces.pop();
-            nodes.push_back(Node(eval, this->depth + 1, newGameState,currentIndex));
-            this->childIndexes.push_back(nodes.size() - 1);
+            // nodes.push_back(Node(eval, this->depth + 1, newGameState, currentIndex));
+            ans.push_back(Node(eval, this->depth + 1, newGameState, currentIndex));
+            // this->childIndexes.push_back(nodes.size() - 1);
         }
         
     }
@@ -798,23 +803,86 @@ void Node::generateChildren(int currentIndex){
             int eval = newGameState.board.placePieceAndEvaluate(placement, nextPiece) + this->score;
             newGameState.piece = nextPiece;
             newGameState.nextPieces.pop();
-            nodes.push_back(Node(eval, this->depth + 1, newGameState, currentIndex));
-            this->childIndexes.push_back(nodes.size() - 1);
+            // nodes.push_back(Node(eval, this->depth + 1, newGameState, currentIndex));
+            ans.push_back(Node(eval, this->depth + 1, newGameState, currentIndex));
+            // this->childIndexes.push_back(nodes.size() - 1);
         }
     }
+
+    return ans;
 }
 
 double bestScore = -10000000;
-int bestNodeIndex;
-mutex mutexForBestScore;
+int bestNodeIndex, whilecnt, piecesplaced;
+mutex mutexForBestScore, mutexForQueue;
+auto cmp = [](int index1, int index2) { return nodes[index1].score < nodes[index2].score; };
+priority_queue<int, vector<int>, decltype(cmp)> gameQueue(cmp);
+int threadcnt;
+const int maxThreads = 32;
+std::thread t[maxThreads];
+bool threadUsed[maxThreads];
+
 
 void updateBest(int newScore, int newNodeIndex) {
-    lock_guard<mutex> lock(mutexForBestScore);
-    
+  
     if (newScore > bestScore) {
         bestScore = newScore;
         bestNodeIndex = newNodeIndex; 
     }
+
+    
+}
+
+// void genChildren(Node current, int currentIndex) {
+//     lock_guard<mutex> lock(mutexForQueue);
+
+//     current.generateChildren(currentIndex);
+
+//     for(auto childIndex : current.childIndexes){
+//         gameQueue.push(childIndex);
+//     }
+// }
+
+void generation(int currentIndex, int currentDepth, int threadIndex){
+    mutexForQueue.lock();
+    Node current = nodes[currentIndex];
+    mutexForQueue.unlock();
+    if(current.depth >= currentDepth + 5 /*|| visitedStates.find(current.gameState) != visitedStates.end()*/){
+        threadUsed[threadIndex] = false;
+        return;
+    }
+    // visitedStates.insert(current.gameState);
+    // if eval of current node is better than best node, set best node to current node
+    mutexForBestScore.lock();
+    if(current.score > bestScore && current.depth != piecesplaced){
+        updateBest(current.score, currentIndex);
+    }
+    mutexForBestScore.unlock();
+
+    // cout << threadIndex << " p1\n";
+
+    // genChildren(current, currentIndex);
+    
+    // cout << threadIndex << " p2\n";
+
+    vector<Node> nextNodes = current.generateChildren(currentIndex);
+    
+    mutexForQueue.lock();
+
+    for(auto node : nextNodes){
+        nodes.push_back(node);
+        current.childIndexes.push_back(nodes.size() - 1);
+        gameQueue.push(nodes.size() - 1);
+    }
+    // for(auto childIndex : current.childIndexes){
+    //     gameQueue.push(childIndex);
+    // }
+
+    mutexForQueue.unlock();
+
+    // cout << threadIndex << " p3\n";
+
+    threadUsed[threadIndex] = false;
 }
 
 int main()
@@ -840,45 +908,54 @@ int main()
 
     nodes.push_back(root);
 
-    // deque<int> queue;
-    // lambda function to compare nodes from index
-    auto cmp = [](int index1, int index2) { return nodes[index1].score < nodes[index2].score; };
-    priority_queue<int, vector<int>, decltype(cmp)> queue(cmp);
-
-    queue.push(0);
+    gameQueue.push(0);
 
     while(true){
         // for 0.25 seconds, generate children recursively, using a BFS queue
         auto start = chrono::high_resolution_clock::now();
         bestScore = -10000000;
-        int currentDepth = nodes[queue.top()].depth;
-        int whilecnt = 0;
-        while(!queue.empty()){
-            whilecnt++;
-            int currentIndex = queue.top();
-            Node current = nodes[currentIndex];
-            queue.pop();
-            if(current.depth >= currentDepth + 5 || visitedStates.find(current.gameState) != visitedStates.end()){
-                continue;
-            }
-            visitedStates.insert(current.gameState);
-            // if eval of current node is better than best node, set best node to current node
-            if(current.score > bestScore && current.depth != nodes[0].depth){
-                updateBest(current.score, currentIndex);
-            }
+        int currentDepth = nodes[gameQueue.top()].depth;
+        whilecnt = 0;
 
-            current.generateChildren(currentIndex);
+        while(true){
+            for(int i = 0; i < maxThreads; i++){
+                
+                mutexForQueue.lock();
+                bool empt = gameQueue.empty();
+                mutexForQueue.unlock();
+                if(!empt && !threadUsed[i]){
+                    threadUsed[i] = true;
+                    whilecnt++;
+                    // lock mutex
+                    mutexForQueue.lock();
+                    int currentIndex = gameQueue.top();
+                    gameQueue.pop();
+                    mutexForQueue.unlock();
+                    if(t[i].joinable()){
+                        t[i].join();
+                    }
+                    t[i] = thread(generation, currentIndex, currentDepth, i);
+                    // generation(currentIndex, currentDepth);
+                    // t[i].detach();
 
-            for(auto childIndex : current.childIndexes){
-                queue.push(childIndex);
+                }
             }
-
+            
             auto end = chrono::high_resolution_clock::now();
             auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-            if(duration.count() > 334){ // 4 pieces per second
+            if(duration.count() > 250 ){ // 4 pieces per second
                 break;
             }
         }
+
+        // join threads
+        for(int i = 0; i < maxThreads; i++){
+            if(t[i].joinable()){
+                t[i].join();
+            }
+        }
+
+        cout << "threadcnt: " << threadcnt << "\n";
         cout << "While for: " << whilecnt << "\n";
         // while(bestNode->parent != root){
         //     bestNode = bestNode->parent;
@@ -898,13 +975,15 @@ int main()
         // set queue for next step
         
         root = bestNode;
-        root.score = 0;
-        queue = priority_queue<int, vector<int>, decltype(cmp)>(cmp);
-        queue.push(0);
+        root.score = 0; 
+        
+        gameQueue = priority_queue<int, vector<int>, decltype(cmp)>(cmp);
+        gameQueue.push(0);
 
         // clear nodes
         nodes.clear();
         nodes.push_back(root);
+        piecesplaced = root.depth;
 
         visitedStates.clear();
         
