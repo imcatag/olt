@@ -1,7 +1,7 @@
-from typing import List, Tuple
 from enum import Enum
+from typing import List, Tuple
 
-class Tetromino(Enum):
+class Piece(Enum):
     I = 0
     J = 1
     L = 2
@@ -9,6 +9,7 @@ class Tetromino(Enum):
     S = 4
     T = 5
     Z = 6
+    NULLPIECE = 7
 
 class Vector2Int:
     # has x and y
@@ -39,77 +40,49 @@ class Vector2Int:
     
     def __hash__(self) -> int:
         return hash((self.x, self.y))
+
 spawnPosition = Vector2Int(4, 19)
-
-class Piece:
-    def __init__(self, tetromino: Tetromino, rotation: int = 0, position: Vector2Int = spawnPosition):
-        self.tetromino = tetromino
-        self.rotation = rotation
-        self.position = position
-    
-    def __str__(self) -> str:
-        return f"{self.tetromino.name} at {self.position} rotated {self.rotation}"
-    
-    def __repr__(self) -> str:
-        return f"{self.tetromino.name} at {self.position} rotated {self.rotation}"
-    
-    def moveDown(self) -> 'Piece':
-        return Piece(self.tetromino, self.rotation, self.position + Vector2Int(0, -1))
-    
-    def moveLeft(self) -> 'Piece':
-        return Piece(self.tetromino, self.rotation, self.position + Vector2Int(-1, 0))
-
-    def moveRight(self) -> 'Piece':
-        return Piece(self.tetromino, self.rotation, self.position + Vector2Int(1, 0))
-    
-    def rotateClockwise(self, offset) -> 'Piece':
-        return Piece(self.tetromino, (self.rotation + 1) % 4, self.position + offset)
-    
-    def rotateCounterClockwise(self, offset) -> 'Piece':
-        return Piece(self.tetromino, (self.rotation - 1) % 4, self.position + offset)
-    
-    def flip180(self, offset) -> 'Piece':
-        return Piece(self.tetromino, (self.rotation + 2) % 4, self.position + offset)
-    
+globalWidth = 10
+globalHeight = 40
 
 Cells = {
-    Tetromino.I: [
+    Piece.I: [
         [Vector2Int(-1, 1), Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(2, 1)],
         [Vector2Int(1, -1), Vector2Int(1, 0), Vector2Int(1, 1), Vector2Int(1, 2)],
         [Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(2, 0)],
         [Vector2Int(0, -1), Vector2Int(0, 0), Vector2Int(0, 1), Vector2Int(0, 2)]
     ],
-    Tetromino.J: [
+    Piece.J: [
         [Vector2Int(-1, 1), Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0)],
         [Vector2Int(1, 1), Vector2Int(0, 1), Vector2Int(0, 0), Vector2Int(0, -1)],
         [Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(1, -1)],
         [Vector2Int(0, 1), Vector2Int(0, 0), Vector2Int(0, -1), Vector2Int(-1, -1)]
     ],
-    Tetromino.L: [
+    Piece.L: [
         [Vector2Int(1, 1), Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0)],
         [Vector2Int(1, -1), Vector2Int(0, -1), Vector2Int(0, 0), Vector2Int(0, 1)],
         [Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(-1, -1)],
         [Vector2Int(0, -1), Vector2Int(0, 0), Vector2Int(0, 1), Vector2Int(-1, 1)]
     ],
-    Tetromino.O: [
+    Piece.O: [
         [Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(0, 0), Vector2Int(1, 0)],
         [Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(0, 0), Vector2Int(1, 0)],
         [Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(0, 0), Vector2Int(1, 0)],
         [Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(0, 0), Vector2Int(1, 0)]
     ],
-    Tetromino.S: [
+    Piece.S: [
         [Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(-1, 0), Vector2Int(0, 0)],
         [Vector2Int(0, 1), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(1, -1)],
         [Vector2Int(-1, -1), Vector2Int(0, -1), Vector2Int(0, 0), Vector2Int(1, 0)],
         [Vector2Int(-1, 1), Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(0, -1)]
     ],
-    Tetromino.T: [
+    Piece.T: [
         [Vector2Int(0, 1), Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0)],
         [Vector2Int(1, 0), Vector2Int(0, 0), Vector2Int(0, 1), Vector2Int(0, -1)],
         [Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(0, -1)],
         [Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(0, 1), Vector2Int(0, -1)]
     ],
-    Tetromino.Z: [
+    Piece.Z: [
         [Vector2Int(-1, 1), Vector2Int(0, 1), Vector2Int(0, 0), Vector2Int(1, 0)],
         [Vector2Int(1, 1), Vector2Int(1, 0), Vector2Int(0, 0), Vector2Int(0, -1)],
         [Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(0, -1), Vector2Int(1, -1)],
@@ -151,3 +124,81 @@ Flips = [
     [Vector2Int(0, 0), Vector2Int(0, -1), Vector2Int(-1, -1), Vector2Int(1, -1), Vector2Int(-1, 0), Vector2Int(1, 0)],  # 2 -> 0
     [Vector2Int(0, 0), Vector2Int(-1, 0), Vector2Int(-1, 2), Vector2Int(-1, 1), Vector2Int(0, 2), Vector2Int(0, 1)]   # 3 -> 1
 ]
+
+TSpinFacingCorners = [[Vector2Int(-1, 1), Vector2Int(1, 1)],
+        [Vector2Int(1, 1), Vector2Int(1, -1)],
+        [Vector2Int(1, -1), Vector2Int(-1, -1)],
+        [Vector2Int(-1, -1), Vector2Int(-1, 1)]]
+
+Diagonals = [Vector2Int(-1, 1),
+        Vector2Int(1, 1),
+        Vector2Int(1, -1),
+        Vector2Int(-1, -1)]
+
+
+class Move:
+    def __init__(self, type: str, offset = 0):
+        self.type = type
+        self.offset = offset
+
+class Placement:
+    def __init__(self, tetromino: Piece, rotation: int, position: Vector2Int, path : List[Move] = []):
+        self.tetromino = tetromino
+        self.rotation = rotation
+        self.position = position
+        self.path = path
+
+class Board:
+    def __init__(self, width: int = globalWidth, height: int = globalHeight, board: List[List[int]] = None):
+        self.width = width
+        self.height = height
+        if board is None:
+            self.board = [[0 for _ in range(width)] for _ in range(height)]
+        else:
+            self.board = board
+
+    def maxHeight(self):
+        for i in range(self.width):
+            # reverse
+            for j in range(self.height - 1, -1, -1):
+                if self.board[j][i] == 1:
+                    return j
+        return 0
+    
+    def __str__(self) -> str:
+        result = ""
+        for i in range(self.height, -1, -1, -1):
+            for j in range(self.width):
+                if self.board[i][j] == 1:
+                    result += "■"
+                else:
+                    result += "□"
+            result += "\n"
+
+        return result
+    
+    def isValid(self, piece: Piece, postion: Vector2Int, rotation: int):
+        for i in range(4):
+            cell = postion + Cells[piece][rotation][i]
+            if cell.x < 0 or cell.x >= self.board.width or cell.y < 0 or cell.y >= self.board.height:
+                return False
+            if self.board.board[cell.y][cell.x] == 1:
+                return False
+        return True
+    
+    def findPlacements(self, piece: Piece, held: bool = False):
+        if piece == Piece.NULLPIECE:
+            print("Just tried to find placements for a null piece")
+            return []
+
+    
+
+class GameState:
+    def __init__(self, board: Board, piece: Piece, heldPiece: Piece = None, rotation: int = 0, position: Vector2Int = spawnPosition):
+        self.board = board
+        self.piece = piece
+        self.heldPiece = heldPiece
+        self.rotation = rotation
+        self.position = position
+
+    

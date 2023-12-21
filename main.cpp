@@ -812,6 +812,8 @@ vector<Node> Node::generateChildren(int currentIndex){
     return ans;
 }
 
+
+
 double bestScore = -10000000;
 int bestNodeIndex, whilecnt, piecesplaced;
 mutex mutexForBestScore, mutexForQueue;
@@ -829,6 +831,16 @@ int bestNodeIndexes[10000];
 atomic<bool> globalStop;
 int cntThr[10000];
 
+class properCompare{
+    int threadIndex;
+public:
+    properCompare(int threadIndex) : threadIndex(threadIndex){}
+    bool operator()(int index1, int index2){
+        return nodesThr[this->threadIndex][index1].score < nodesThr[this->threadIndex][index2].score;
+    }
+};
+
+vector<priority_queue<int, vector<int>, properCompare>> gameQueues2;
 
 void updateBest(int newScore, int newNodeIndex) {
 
@@ -836,26 +848,24 @@ void updateBest(int newScore, int newNodeIndex) {
         bestScore = newScore;
         bestNodeIndex = newNodeIndex;
     }
-
-
 }
 
 void generateThr(int threadIndex, Node start){
 
     nodesThr[threadIndex].push_back(start);
-    gameQueues[threadIndex].push(0);
+    gameQueues2[threadIndex].push(0);
     int currentIndex = 0;
     int currentDepth = start.depth;
 
     cntThr[threadIndex] = 0;
 
-    while(!gameQueues[threadIndex].empty() && !globalStop){
+    while(!gameQueues2[threadIndex].empty() && !globalStop){
         cntThr[threadIndex] ++;
 
         // get top of queue, generate children, push children to queue
 
-        Node current = nodesThr[threadIndex][gameQueues[threadIndex].top()];
-        gameQueues[threadIndex].pop();
+        Node current = nodesThr[threadIndex][gameQueues2[threadIndex].top()];
+        gameQueues2[threadIndex].pop();
 
         if(current.depth >= currentDepth + 5 /*|| visitedStates.find(current.gameState) != visitedStates.end()*/){
             continue;
@@ -867,7 +877,7 @@ void generateThr(int threadIndex, Node start){
 
         if(current.score > bestScores[threadIndex] && current.depth != piecesplaced){
             bestScores[threadIndex] = current.score;
-            bestNodeIndexes[threadIndex] = gameQueues[threadIndex].top();
+            bestNodeIndexes[threadIndex] = gameQueues2[threadIndex].top();
         }
 
         // generate children
@@ -877,7 +887,7 @@ void generateThr(int threadIndex, Node start){
         for(auto node : nextNodes){
             nodesThr[threadIndex].push_back(node);
             current.childIndexes.push_back(nodesThr[threadIndex].size() - 1);
-            gameQueues[threadIndex].push(nodesThr[threadIndex].size() - 1);
+            gameQueues2[threadIndex].push(nodesThr[threadIndex].size() - 1);
         }
     }
 
@@ -909,10 +919,9 @@ int main()
 
     gameQueue.push(0);
 
-    while(true){
-        // start clock
-        auto start = chrono::high_resolution_clock::now();
+    auto start = chrono::high_resolution_clock::now();
 
+    while(true){
         // set best score to -10000000
         bestScore = -10000000;
 
@@ -920,10 +929,11 @@ int main()
         vector<Node> nextNodes = root.generateChildren(0);
         unsigned long long int nextCount = nextNodes.size();
 
+        gameQueues2.clear();
         // reset vectors and queues
         for(unsigned long long int i = 0; i < nextCount; i++){
             nodesThr[i].clear();
-            gameQueues[i] = priority_queue<int, vector<int>, decltype(cmp)>(cmp);
+            gameQueues2.push_back(priority_queue<int, vector<int>, properCompare>(properCompare(i)));
             bestScores[i] = -10000000;
             bestNodeIndexes[i] = 0;
         }
@@ -939,16 +949,20 @@ int main()
         while(true){
             auto end = chrono::high_resolution_clock::now();
             if(chrono::duration_cast<chrono::milliseconds>(end - start).count() > 250){
+                
                 globalStop = true;
+                for(unsigned long long int i = 0; i < nextCount; i++){
+                    if(t[i].joinable()){
+                        t[i].join();
+                    }
+                }
+                cout << "elapsd time: " << chrono::duration_cast<chrono::milliseconds>(end - start).count() << "\n";
+                start = end;
                 break;
             }
         }
 
-        for(unsigned long long int i = 0; i < nextCount; i++){
-            if(t[i].joinable()){
-                t[i].join();
-            }
-        }
+        
 
         // find best node
         int bestThread = 0;
