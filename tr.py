@@ -287,12 +287,10 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement):
     return (newBoard, 0)
 
 class GameState:
-    def __init__(self, board: Board, piece: Piece, heldPiece: Piece = Piece.NULLPIECE, rotation: int = 0, position: Vector2Int = spawnPosition, pieceCount: int = 0, evaluation : float = 0):
+    def __init__(self, board: Board, piece: Piece, heldPiece: Piece = Piece.NULLPIECE, pieceCount: int = 0, evaluation : float = 0):
         self.board = board
         self.piece = piece
         self.heldPiece = heldPiece
-        self.rotation = rotation
-        self.position = position
         self.pieceCount = pieceCount
         self.evaluation = evaluation
 
@@ -308,12 +306,12 @@ class GameState:
             placements = self.board.findPlacements(self.piece)
             for placement in placements:
                 newBoard, newEvaluation = PlacePieceAndEvaluate(self.board, placement)
-                children.append(GameState(newBoard, pieceQueue[self.pieceCount + 1], self.heldPiece, placement.rotation, placement.position, self.pieceCount + 1, newEvaluation))
+                children.append(GameState(newBoard, pieceQueue[self.pieceCount + 1], self.heldPiece, self.pieceCount + 1, newEvaluation))
                 
         
         if self.heldPiece == Piece.NULLPIECE:
             # hold piece becomes current piece, current piece becomes next piece
-            newState = GameState(self.board, pieceQueue[self.pieceCount + 1], self.piece, self.rotation, self.position, self.pieceCount + 1)
+            newState = GameState(self.board, pieceQueue[self.pieceCount + 1], self.piece, self.pieceCount + 1)
 
             # create children for newState
 
@@ -321,11 +319,11 @@ class GameState:
 
             for placement in placements:
                 newBoard, newEvaluation = PlacePieceAndEvaluate(newState.board, placement)
-                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, placement.rotation, placement.position, newState.pieceCount + 1, newEvaluation))
+                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation))
 
         if self.heldPiece != Piece.NULLPIECE:
             # hold piece becomes current piece, held piece becomes hold piece
-            newState = GameState(self.board, self.heldPiece, self.piece, self.rotation, self.position, self.pieceCount)
+            newState = GameState(self.board, self.heldPiece, self.piece, self.pieceCount)
 
             # create children for newState
 
@@ -333,28 +331,40 @@ class GameState:
 
             for placement in placements:
                 newBoard, newEvaluation = PlacePieceAndEvaluate(newState.board, placement)
-                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, placement.rotation, placement.position, newState.pieceCount + 1, newEvaluation))
+                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation))
 
         return children
     
+    def __str__(self) -> str:
+        result = ""
+        for i in range(self.board.height - 1, -1, -1):
+            for j in range(self.board.width):
+                if self.board.board[i][j] == 1:
+                    result += "■"
+                else:
+                    result += "□"
+            result += "\n"
+
+        result += f"Piece: {self.piece}\n"
+        result += f"Held Piece: {self.heldPiece}\n"
+        result += f"Piece Count: {self.pieceCount}\n"
+        result += f"Evaluation: {self.evaluation}\n"
+
+        return result
 # create initial board
 board = Board()
 
 # create initial game state
 gameState = GameState(board, pieceQueue[0])
 
+print(gameState)
+
 # create initial children
 children = gameState.generateChildren()
 
-for child in children:
-    print(child.board)
-    print(child.piece)
-    print(child.heldPiece)
-    print(child.rotation)
-    print(child.position)
-    print(child.pieceCount)
-    print(child.evaluation)
-    print()
+input()
 
+for child in children:
+    print(child)
     # wait for input
     input()
