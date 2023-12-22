@@ -2,7 +2,7 @@ from enum import Enum
 from typing import List
 from collections import deque
 from random import shuffle
-
+from copy import deepcopy
 class Piece(Enum):
     I = 0
     J = 1
@@ -164,7 +164,7 @@ class Board:
         if board is None:
             self.board = [[0 for _ in range(width)] for _ in range(height)]
         else:
-            self.board = board
+            self.board = deepcopy(board)
 
     def maxHeight(self):
         for i in range(self.width):
@@ -233,7 +233,6 @@ class Board:
             # add to final placements if cannot move down
             if not self.isValid(currentPlacement.piece, currentPlacement.position + Vector2Int(0, -1), currentPlacement.rotation):
                 finalPlacements.append(currentPlacement)
-                continue
             else:
                 # move down
                 queue.append(Placement(currentPlacement.piece, currentPlacement.rotation, currentPlacement.position + Vector2Int(0, -1), currentPlacement.path + [Move("D")]))
@@ -255,7 +254,8 @@ class Board:
                 newPosition = currentPlacement.position + offsetList[i]
                 if self.isValid(currentPlacement.piece, newPosition, newRotation):
                     queue.append(Placement(currentPlacement.piece, newRotation, newPosition, currentPlacement.path + [Move("CW", i)]))
-            
+                    break
+                
             # rotate counterclockwise
             newRotation = (currentPlacement.rotation + 3) % 4
             newCells = Cells[currentPlacement.piece][newRotation]
@@ -265,6 +265,7 @@ class Board:
                 newPosition = currentPlacement.position + offsetList[i]
                 if self.isValid(currentPlacement.piece, newPosition, newRotation):
                     queue.append(Placement(currentPlacement.piece, newRotation, newPosition, currentPlacement.path + [Move("CCW", i)]))
+                    break
 
             # rotate 180
                     
@@ -276,6 +277,7 @@ class Board:
                 newPosition = currentPlacement.position + offsetList[i]
                 if self.isValid(currentPlacement.piece, newPosition, newRotation):
                     queue.append(Placement(currentPlacement.piece, newRotation, newPosition, currentPlacement.path + [Move("180", i)]))
+                    break
             
         return finalPlacements
 
@@ -362,9 +364,9 @@ print(gameState)
 # create initial children
 children = gameState.generateChildren()
 
-input()
+# input()
 
 for child in children:
     print(child)
     # wait for input
-    input()
+    # input()
