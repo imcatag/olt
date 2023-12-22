@@ -176,12 +176,12 @@ class Board:
     
     def __str__(self) -> str:
         result = ""
-        for i in range(self.height - 1, -1, -1):
+        for i in range(self.height//2 - 1, -1, -1):  # // 2 to only show bottom half, which player should see
             for j in range(self.width):
                 if self.board[i][j] == 1:
-                    result += "■"
+                    result += "#"
                 else:
-                    result += "□"
+                    result += "_"
             result += "\n"
 
         return result
@@ -336,23 +336,16 @@ class GameState:
                 children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation))
 
         return children
-    
-    def __str__(self) -> str:
-        result = ""
-        for i in range(self.board.height - 1, -1, -1):
-            for j in range(self.board.width):
-                if self.board.board[i][j] == 1:
-                    result += "■"
-                else:
-                    result += "□"
-            result += "\n"
 
+    def __str__(self) -> str:
+        result = self.board.__str__()
         result += f"Piece: {self.piece}\n"
         result += f"Held Piece: {self.heldPiece}\n"
         result += f"Piece Count: {self.pieceCount}\n"
         result += f"Evaluation: {self.evaluation}\n"
 
         return result
+
 # create initial board
 board = Board()
 
