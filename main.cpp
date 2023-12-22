@@ -677,6 +677,7 @@ public:
             newPlacement = currentPlacement;
             newRotation = (currentPlacement.rotation + 2) % 4;
             newCells = Cells[piece][newRotation];
+            offsetList = Flips[currentPlacement.rotation];
 
             // for(auto offset : Flips[currentPlacement.rotation]){
             //     newPlacement.position = currentPlacement.position + offset;

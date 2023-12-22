@@ -1,5 +1,7 @@
 from enum import Enum
-from typing import List, Tuple
+from typing import List
+from collections import deque
+from random import shuffle
 
 class Piece(Enum):
     I = 0
@@ -44,6 +46,13 @@ class Vector2Int:
 spawnPosition = Vector2Int(4, 19)
 globalWidth = 10
 globalHeight = 40
+
+defaultbag = [Piece.T, Piece.J, Piece.Z, Piece.O, Piece.S, Piece.L, Piece.I]
+pieceQueue = []
+
+for i in range(1000):
+    shuffle(defaultbag)
+    pieceQueue += defaultbag
 
 Cells = {
     Piece.I: [
@@ -142,8 +151,8 @@ class Move:
         self.offset = offset
 
 class Placement:
-    def __init__(self, tetromino: Piece, rotation: int, position: Vector2Int, path : List[Move] = []):
-        self.tetromino = tetromino
+    def __init__(self, piece: Piece, rotation: int, position: Vector2Int, path : List[Move] = []):
+        self.piece = piece
         self.rotation = rotation
         self.position = position
         self.path = path
@@ -167,7 +176,7 @@ class Board:
     
     def __str__(self) -> str:
         result = ""
-        for i in range(self.height, -1, -1, -1):
+        for i in range(self.height - 1, -1, -1):
             for j in range(self.width):
                 if self.board[i][j] == 1:
                     result += "■"
@@ -180,25 +189,172 @@ class Board:
     def isValid(self, piece: Piece, postion: Vector2Int, rotation: int):
         for i in range(4):
             cell = postion + Cells[piece][rotation][i]
-            if cell.x < 0 or cell.x >= self.board.width or cell.y < 0 or cell.y >= self.board.height:
+            if cell.x < 0 or cell.x >= self.width or cell.y < 0 or cell.y >= self.height:
                 return False
-            if self.board.board[cell.y][cell.x] == 1:
+            if self.board[cell.y][cell.x] == 1:
                 return False
         return True
     
     def findPlacements(self, piece: Piece, held: bool = False):
+
+        finalPlacements = []
+
         if piece == Piece.NULLPIECE:
             print("Just tried to find placements for a null piece")
             return []
 
-    
+        maxHeight = self.maxHeight()
+
+        optimalSpawnPosition = Vector2Int(spawnPosition.x, min(spawnPosition.y, maxHeight + 2))
+
+        path1 = []
+
+        if held:
+            path1.append(Move("H"))
+        
+        for i in range(optimalSpawnPosition.y, spawnPosition.y + 1):
+            path1.append(Move("S"))
+
+        # visited is [4][width+2][height+2]
+        offset = 2
+        visited = [[[False for _ in range(self.height + 4)] for _ in range(self.width + 4)] for _ in range(4)]
+
+        queue = deque()
+        queue.append(Placement(piece, 0, optimalSpawnPosition, path1))
+
+        while len(queue) > 0:
+            currentPlacement = queue.popleft()
+
+            if visited[currentPlacement.rotation][currentPlacement.position.x + offset][currentPlacement.position.y + offset]:
+                continue
+
+            visited[currentPlacement.rotation][currentPlacement.position.x + offset][currentPlacement.position.y + offset] = True
+
+            # add to final placements if cannot move down
+            if not self.isValid(currentPlacement.piece, currentPlacement.position + Vector2Int(0, -1), currentPlacement.rotation):
+                finalPlacements.append(currentPlacement)
+                continue
+            else:
+                # move down
+                queue.append(Placement(currentPlacement.piece, currentPlacement.rotation, currentPlacement.position + Vector2Int(0, -1), currentPlacement.path + [Move("D")]))
+            
+            # move left
+            if self.isValid(currentPlacement.piece, currentPlacement.position + Vector2Int(-1, 0), currentPlacement.rotation):
+                queue.append(Placement(currentPlacement.piece, currentPlacement.rotation, currentPlacement.position + Vector2Int(-1, 0), currentPlacement.path + [Move("L")]))
+            
+            # move right
+            if self.isValid(currentPlacement.piece, currentPlacement.position + Vector2Int(1, 0), currentPlacement.rotation):
+                queue.append(Placement(currentPlacement.piece, currentPlacement.rotation, currentPlacement.position + Vector2Int(1, 0), currentPlacement.path + [Move("R")]))
+
+            # rotate clockwise
+            newRotation = (currentPlacement.rotation + 1) % 4
+            newCells = Cells[currentPlacement.piece][newRotation]
+            offsetList = WallKicksI[currentPlacement.rotation] if currentPlacement.piece == Piece.I else WallKicksJLOSTZ[currentPlacement.rotation]
+
+            for i in range(5):
+                newPosition = currentPlacement.position + offsetList[i]
+                if self.isValid(currentPlacement.piece, newPosition, newRotation):
+                    queue.append(Placement(currentPlacement.piece, newRotation, newPosition, currentPlacement.path + [Move("CW", i)]))
+            
+            # rotate counterclockwise
+            newRotation = (currentPlacement.rotation + 3) % 4
+            newCells = Cells[currentPlacement.piece][newRotation]
+            offsetList = CounterWallKicksI[currentPlacement.rotation] if currentPlacement.piece == Piece.I else CounterWallKicksJLOSTZ[currentPlacement.rotation]
+
+            for i in range(5):
+                newPosition = currentPlacement.position + offsetList[i]
+                if self.isValid(currentPlacement.piece, newPosition, newRotation):
+                    queue.append(Placement(currentPlacement.piece, newRotation, newPosition, currentPlacement.path + [Move("CCW", i)]))
+
+            # rotate 180
+                    
+            newRotation = (currentPlacement.rotation + 2) % 4
+            newCells = Cells[currentPlacement.piece][newRotation]
+            offsetList = Flips[currentPlacement.rotation]
+
+            for i in range(6):
+                newPosition = currentPlacement.position + offsetList[i]
+                if self.isValid(currentPlacement.piece, newPosition, newRotation):
+                    queue.append(Placement(currentPlacement.piece, newRotation, newPosition, currentPlacement.path + [Move("180", i)]))
+            
+        return finalPlacements
+
+def PlacePieceAndEvaluate(board: Board, placement: Placement):
+    newBoard = Board(board.width, board.height, board.board)
+    for i in range(4):
+        cell = placement.position + Cells[placement.piece][placement.rotation][i]
+        newBoard.board[cell.y][cell.x] = 1
+    return (newBoard, 0)
 
 class GameState:
-    def __init__(self, board: Board, piece: Piece, heldPiece: Piece = None, rotation: int = 0, position: Vector2Int = spawnPosition):
+    def __init__(self, board: Board, piece: Piece, heldPiece: Piece = Piece.NULLPIECE, rotation: int = 0, position: Vector2Int = spawnPosition, pieceCount: int = 0, evaluation : float = 0):
         self.board = board
         self.piece = piece
         self.heldPiece = heldPiece
         self.rotation = rotation
         self.position = position
+        self.pieceCount = pieceCount
+        self.evaluation = evaluation
 
+    def generateChildren(self):
+
+        children = []
+
+        if self.piece == Piece.NULLPIECE:
+            print("Just tried to generate children for a null piece")
+            return []
+        
+        else:
+            placements = self.board.findPlacements(self.piece)
+            for placement in placements:
+                newBoard, newEvaluation = PlacePieceAndEvaluate(self.board, placement)
+                children.append(GameState(newBoard, pieceQueue[self.pieceCount + 1], self.heldPiece, placement.rotation, placement.position, self.pieceCount + 1, newEvaluation))
+                
+        
+        if self.heldPiece == Piece.NULLPIECE:
+            # hold piece becomes current piece, current piece becomes next piece
+            newState = GameState(self.board, pieceQueue[self.pieceCount + 1], self.piece, self.rotation, self.position, self.pieceCount + 1)
+
+            # create children for newState
+
+            placements = newState.board.findPlacements(newState.piece, True)
+
+            for placement in placements:
+                newBoard, newEvaluation = PlacePieceAndEvaluate(newState.board, placement)
+                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, placement.rotation, placement.position, newState.pieceCount + 1, newEvaluation))
+
+        if self.heldPiece != Piece.NULLPIECE:
+            # hold piece becomes current piece, held piece becomes hold piece
+            newState = GameState(self.board, self.heldPiece, self.piece, self.rotation, self.position, self.pieceCount)
+
+            # create children for newState
+
+            placements = newState.board.findPlacements(newState.piece, True)
+
+            for placement in placements:
+                newBoard, newEvaluation = PlacePieceAndEvaluate(newState.board, placement)
+                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, placement.rotation, placement.position, newState.pieceCount + 1, newEvaluation))
+
+        return children
     
+# create initial board
+board = Board()
+
+# create initial game state
+gameState = GameState(board, pieceQueue[0])
+
+# create initial children
+children = gameState.generateChildren()
+
+for child in children:
+    print(child.board)
+    print(child.piece)
+    print(child.heldPiece)
+    print(child.rotation)
+    print(child.position)
+    print(child.pieceCount)
+    print(child.evaluation)
+    print()
+
+    # wait for input
+    input()
