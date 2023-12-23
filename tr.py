@@ -1,8 +1,9 @@
 from enum import Enum
 from typing import List
 from collections import deque
-from random import shuffle
+from random import shuffle, choice
 from copy import deepcopy
+
 class Piece(Enum):
     I = 0
     J = 1
@@ -167,11 +168,10 @@ class Board:
             self.board = deepcopy(board)
 
     def maxHeight(self):
-        for i in range(self.width):
-            # reverse
-            for j in range(self.height - 1, -1, -1):
-                if self.board[j][i] == 1:
-                    return j
+        for i in range(self.height - 1, -1, -1):
+            for j in range(self.width):
+                if self.board[i][j] == 1:
+                    return i + 1
         return 0
     
     def __str__(self) -> str:
@@ -283,10 +283,107 @@ class Board:
 
 def PlacePieceAndEvaluate(board: Board, placement: Placement):
     newBoard = Board(board.width, board.height, board.board)
+    score = 0
+
+    # place piece
     for i in range(4):
         cell = placement.position + Cells[placement.piece][placement.rotation][i]
         newBoard.board[cell.y][cell.x] = 1
-    return (newBoard, 0)
+
+    # if piece is T and last move was rotation, check for T-Spin
+    tspin = False
+    tspinmini = False
+    if placement.piece == Piece.T and (placement.path[-1].type == "CW" or placement.path[-1].type == "CCW"):
+        # check for fin and overhang T-Spin
+        if (placement.rotation == 2 or placement.rotation == 0) and placement.path[-1].offset == 4:
+            tspin = True
+        else:
+            # get number of corners filled
+            cornersFilled = 0
+            for offset in Diagonals:
+                print(placement.position + offset)
+                # if out of bounds, add to corners filled
+                if placement.position.x + offset.x < 0 or placement.position.x + offset.x >= newBoard.width or placement.position.y + offset.y < 0 or placement.position.y + offset.y >= newBoard.height:
+                    cornersFilled += 1
+                
+                # if not out of bounds, check if filled
+                elif newBoard.board[placement.position.y + offset.y][placement.position.x + offset.x] == 1:
+                    cornersFilled += 1
+            
+            # get number of facing corners filled
+            facingCornersFilled = 0
+            for offset in TSpinFacingCorners[placement.rotation]:
+                # if out of bounds, add to corners filled
+                if placement.position.x + offset.x < 0 or placement.position.x + offset.x >= newBoard.width or placement.position.y + offset.y < 0 or placement.position.y + offset.y >= newBoard.height:
+                    facingCornersFilled += 1
+                
+                # if not out of bounds, check if filled
+                elif newBoard.board[placement.position.y + offset.y][placement.position.x + offset.x] == 1:
+                    facingCornersFilled += 1
+                
+            # if 3 corners filled, T-Spin
+            if cornersFilled >= 3:
+                if facingCornersFilled >= 2:
+                    tspin = True
+                else:
+                    tspinmini = True
+    
+    # clear lines
+    maxHeight = newBoard.maxHeight()
+    shouldClear = [True for _ in range(maxHeight)]
+    linesCleared = 0
+
+    for i in range(maxHeight):
+        for j in range(newBoard.width):
+            if newBoard.board[i][j] == 0:
+                shouldClear[i] = False
+                break
+
+    for i in range(maxHeight - 1, -1, -1):
+        if shouldClear[i]:
+            linesCleared += 1
+            newBoard.board.pop(i)
+    
+    newBoard.board += [[0 for _ in range(newBoard.width)] for _ in range(linesCleared)]
+
+    maxHeight = newBoard.maxHeight()
+
+    # check for perfect clear - if bottom line is empty, perfect clear
+    perfectClear = 1 in newBoard.board[0]
+
+    # calculate spikiness
+    
+    # get heights
+    heights = [0 for _ in range(newBoard.width)]
+    for i in range(newBoard.width):
+        for j in range(maxHeight - 1, -1, -1):
+            if newBoard.board[j][i] == 1:
+                heights[i] = j + 1
+                break
+    
+    # calculate spikiness
+    spikiness = 0
+    for i in range(newBoard.width - 1):
+        spikiness += max(abs(heights[i] - heights[i + 1]) - 1, 0)
+
+    # calculate 0s covered by 1s
+    found1 = [False for _ in range(newBoard.width)]
+    covered = 0
+
+    for i in range(maxHeight - 1, -1, -1):
+        for j in range(newBoard.width):
+            if newBoard.board[i][j] == 1:
+                found1[j] = True
+            elif found1[j]:
+                covered += 1
+
+    score -= spikiness
+    score += linesCleared
+    score += tspin * 2
+    score += tspinmini
+    score -= covered
+
+    return (newBoard, score)
 
 class GameState:
     def __init__(self, board: Board, piece: Piece, heldPiece: Piece = Piece.NULLPIECE, pieceCount: int = 0, evaluation : float = 0):
@@ -359,7 +456,12 @@ children = gameState.generateChildren()
 
 # input()
 
-for child in children:
+for i in range(30):
+    # choose random child
+    child = choice(children)
+    
+    # print child
     print(child)
-    # wait for input
-    # input()
+
+    # generate children for child
+    children = child.generateChildren()
