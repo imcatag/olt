@@ -14,6 +14,8 @@ class Piece(Enum):
     Z = 6
     NULLPIECE = 7
 
+weights = {'lineClears' : [0, 1, 2, 3, 4], 'TSpin' : [0, 1, 4, 6] , 'TSpinMini' : [0, 1, 1], 'perfectClear' : 10, 'height': -0.4, 'spikiness' : -0.5, 'covered' : -0.4}
+
 class Vector2Int:
     # has x and y
     def __init__(self, x: int, y: int):
@@ -44,7 +46,7 @@ class Vector2Int:
     def __hash__(self) -> int:
         return hash((self.x, self.y))
 
-spawnPosition = Vector2Int(4, 19)
+spawnPosition = Vector2Int(4, 20)
 globalWidth = 10
 globalHeight = 40
 
@@ -202,6 +204,11 @@ class Board:
         if piece == Piece.NULLPIECE:
             print("Just tried to find placements for a null piece")
             return []
+        
+        # if spawn of piece is obstructed, return empty list
+
+        if not self.isValid(piece, spawnPosition, 0):
+            return []
 
         maxHeight = self.maxHeight()
 
@@ -301,7 +308,6 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement):
             # get number of corners filled
             cornersFilled = 0
             for offset in Diagonals:
-                print(placement.position + offset)
                 # if out of bounds, add to corners filled
                 if placement.position.x + offset.x < 0 or placement.position.x + offset.x >= newBoard.width or placement.position.y + offset.y < 0 or placement.position.y + offset.y >= newBoard.height:
                     cornersFilled += 1
@@ -377,11 +383,14 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement):
             elif found1[j]:
                 covered += 1
 
-    score -= spikiness
-    score += linesCleared
-    score += tspin * 2
-    score += tspinmini
-    score -= covered
+    score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + perfectClear * weights['perfectClear']
+    
+    if tspin:
+        score += weights['TSpin'][linesCleared]
+    elif tspinmini:
+        score += weights['TSpinMini'][linesCleared]
+    else:
+        score += weights['lineClears'][linesCleared]
 
     return (newBoard, score)
 
@@ -405,7 +414,7 @@ class GameState:
             placements = self.board.findPlacements(self.piece)
             for placement in placements:
                 newBoard, newEvaluation = PlacePieceAndEvaluate(self.board, placement)
-                children.append(GameState(newBoard, pieceQueue[self.pieceCount + 1], self.heldPiece, self.pieceCount + 1, newEvaluation))
+                children.append(GameState(newBoard, pieceQueue[self.pieceCount + 1], self.heldPiece, self.pieceCount + 1, newEvaluation + self.evaluation))
                 
         
         if self.heldPiece == Piece.NULLPIECE:
@@ -418,7 +427,7 @@ class GameState:
 
             for placement in placements:
                 newBoard, newEvaluation = PlacePieceAndEvaluate(newState.board, placement)
-                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation))
+                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation + newState.evaluation))
 
         if self.heldPiece != Piece.NULLPIECE:
             # hold piece becomes current piece, held piece becomes hold piece
@@ -430,7 +439,7 @@ class GameState:
 
             for placement in placements:
                 newBoard, newEvaluation = PlacePieceAndEvaluate(newState.board, placement)
-                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation))
+                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation + newState.evaluation))
 
         return children
 
@@ -456,9 +465,9 @@ children = gameState.generateChildren()
 
 # input()
 
-for i in range(30):
-    # choose random child
-    child = choice(children)
+while True:
+    # choose child with highest evaluation
+    child = max(children, key = lambda x: x.evaluation)
     
     # print child
     print(child)
