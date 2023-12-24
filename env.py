@@ -30,10 +30,10 @@ class Env:
     def normalize_features(self, features: List[float]) -> List[float]:
         normalized_features = deepcopy(features)
 
-        normalized_features[0] = min_max_scaling(normalized_features[0], 0, 5)
-        normalized_features[1] = min_max_scaling(normalized_features[1], 0, 20)
-        normalized_features[2] = min_max_scaling(normalized_features[2], 0, 20)
-        normalized_features[3] = min_max_scaling(normalized_features[3], 0, 20)
+        normalized_features[0] = min_max_scaling(min(normalized_features[0], 5), 0, 5)
+        normalized_features[1] = min_max_scaling(min(normalized_features[1], 20), 0, 20)
+        normalized_features[2] = min_max_scaling(min(normalized_features[2], 20), 0, 20)
+        normalized_features[3] = min_max_scaling(min(normalized_features[3], 20), 0, 20)
         normalized_features[4] = 1 if normalized_features[4] else 0
         # tspin and tspin mini not normalized
 
@@ -57,30 +57,36 @@ class Env:
             second_next_possible_states = None
 
             while True:
-                # print(self.state)
+                # if _ == 5 and self.state.board.maxHeight >= 10:
+                #     print("here")
+
                 possible_next_states = (
                     second_next_possible_states
                     if second_next_possible_states != None
                     else self.state.generateChildren()
                 )
                 next_state = self.epsilon_greedy(possible_next_states)
+                current_q = self.get_approx_Q(next_state)
                 reward = next_state.evaluation
                 features = self.normalize_features(next_state.features)
 
                 second_next_possible_states = next_state.generateChildren()
                 # check if next_state is terminal
                 if len(second_next_possible_states) == 0:
-                    self.update_weights(
-                        reward - self.get_approx_Q(next_state), features
-                    )
+                    self.update_weights(reward - current_q, features)
                     break
 
                 second_next_state = self.epsilon_greedy(second_next_possible_states)
+                next_q = self.get_approx_Q(second_next_state)
                 self.update_weights(
-                    reward
-                    + gamma * self.get_approx_Q(second_next_state)
-                    - self.get_approx_Q(next_state),
+                    reward + gamma * next_q - current_q,
                     features,
                 )
 
                 self.state = deepcopy(next_state)
+                self.alpha = 2 / (self.state.board.maxHeight() + 1) # TODO: remove
+
+
+# env = Env()
+
+# env.train()
