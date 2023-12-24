@@ -46,10 +46,7 @@ class Env:
 
     def update_weights(self, delta: float, features):
         self.weights = [
-            self.weights[i]
-            + self.alpha
-            * delta
-            * features[i]
+            self.weights[i] + self.alpha * delta * features[i]
             for i in range(len(self.weights))
         ]
 
@@ -57,10 +54,15 @@ class Env:
         for _ in range(num_episodes):
             self.state = GameState(self.board, pieceQueue[self.state.pieceCount + 1])
             print(self.weights)
+            second_next_possible_states = None
 
             while True:
                 # print(self.state)
-                possible_next_states = self.state.generateChildren()
+                possible_next_states = (
+                    second_next_possible_states
+                    if second_next_possible_states != None
+                    else self.state.generateChildren()
+                )
                 next_state = self.epsilon_greedy(possible_next_states)
                 reward = next_state.evaluation
                 features = self.normalize_features(next_state.features)
@@ -68,15 +70,17 @@ class Env:
                 second_next_possible_states = next_state.generateChildren()
                 # check if next_state is terminal
                 if len(second_next_possible_states) == 0:
-                    self.update_weights(reward - self.get_approx_Q(next_state), features)
+                    self.update_weights(
+                        reward - self.get_approx_Q(next_state), features
+                    )
                     break
 
                 second_next_state = self.epsilon_greedy(second_next_possible_states)
-                self.update_weights(reward + gamma * self.get_approx_Q(second_next_state) - self.get_approx_Q(next_state), features)
+                self.update_weights(
+                    reward
+                    + gamma * self.get_approx_Q(second_next_state)
+                    - self.get_approx_Q(next_state),
+                    features,
+                )
 
                 self.state = deepcopy(next_state)
-
-
-env = Env()
-
-env.train()

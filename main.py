@@ -53,7 +53,7 @@ globalHeight = 40
 defaultbag = [Piece.T, Piece.J, Piece.Z, Piece.O, Piece.S, Piece.L, Piece.I]
 pieceQueue = []
 
-for i in range(1000):
+for i in range(10000):
     shuffle(defaultbag)
     pieceQueue += defaultbag
 
@@ -396,12 +396,13 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
     return (newBoard, score, features)
 
 class GameState:
-    def __init__(self, board: Board, piece: Piece, heldPiece: Piece = Piece.NULLPIECE, pieceCount: int = 0, evaluation : float = 0):
+    def __init__(self, board: Board, piece: Piece, heldPiece: Piece = Piece.NULLPIECE, pieceCount: int = 0, evaluation : float = 0, features: List[float] = []):
         self.board = board
         self.piece = piece
         self.heldPiece = heldPiece
         self.pieceCount = pieceCount
         self.evaluation = evaluation
+        self.features = features
 
     def generateChildren(self) -> List['GameState']:
 
@@ -414,8 +415,8 @@ class GameState:
         else:
             placements = self.board.findPlacements(self.piece)
             for placement in placements:
-                newBoard, newEvaluation, _ = PlacePieceAndEvaluate(self.board, placement)
-                children.append(GameState(newBoard, pieceQueue[self.pieceCount + 1], self.heldPiece, self.pieceCount + 1, newEvaluation + self.evaluation))
+                newBoard, newEvaluation, features = PlacePieceAndEvaluate(self.board, placement)
+                children.append(GameState(newBoard, pieceQueue[self.pieceCount + 1], self.heldPiece, self.pieceCount + 1, newEvaluation, features))
                 
         
         if self.heldPiece == Piece.NULLPIECE:
@@ -427,8 +428,8 @@ class GameState:
             placements = newState.board.findPlacements(newState.piece, True)
 
             for placement in placements:
-                newBoard, newEvaluation, _ = PlacePieceAndEvaluate(newState.board, placement)
-                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation + newState.evaluation))
+                newBoard, newEvaluation, features = PlacePieceAndEvaluate(newState.board, placement)
+                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation, features))
 
         if self.heldPiece != Piece.NULLPIECE:
             # hold piece becomes current piece, held piece becomes hold piece
@@ -439,8 +440,8 @@ class GameState:
             placements = newState.board.findPlacements(newState.piece, True)
 
             for placement in placements:
-                newBoard, newEvaluation, _ = PlacePieceAndEvaluate(newState.board, placement)
-                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation + newState.evaluation))
+                newBoard, newEvaluation, features = PlacePieceAndEvaluate(newState.board, placement)
+                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation, features))
 
         return children
 
@@ -463,7 +464,6 @@ class GameState:
 
 # # create initial children
 # children = gameState.generateChildren()
-
 # # input()
 
 # while True:
