@@ -392,12 +392,12 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
 
     overHalf = 0
     # calculate 1s over half height
-    for i in range(newBoard.height / 2, newBoard.height):
+    for i in range(newBoard.height // 2, newBoard.height):
         for j in range(newBoard.width):
             overHalf += newBoard.board[i][j]
 
     # weights = {'0' : 0, '1' : -1.5, '2' : -1.5, '3' : -1, '4' : 4, 'perfectClear' : 10, 'height' : -0.4, 'spikiness' : -0.5, 'covered' : -0.4, 'gaps' : -3, 'halfHeight' : -0.1}
-    features = {linesCleared == 0, linesCleared == 1, linesCleared == 2, linesCleared == 3, linesCleared == 4, perfectClear, maxHeight, spikiness, covered, gaps, overHalf}
+    features = [linesCleared == 0, linesCleared == 1, linesCleared == 2, linesCleared == 3, linesCleared == 4, perfectClear, maxHeight, spikiness, covered, gaps, overHalf]
     score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + perfectClear * weights['perfectClear']
     
     # if tspin:

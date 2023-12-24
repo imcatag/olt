@@ -11,32 +11,22 @@ class Env:
         self.board = Board()
         self.state = GameState(self.board, pieceQueue[0])
         # linesCleared, spikiness, covered, maxHeight, perfectClear, tspin, tspinmini
-        self.weights = [3, -5, -20, -1, 7, 10, -2] #  [0.1 for _ in range(7)]
+        self.weights = [0.1 for _ in range(11)]
         self.alpha = 0.5
         self.epsilon = 0.05
-
-    def step(self):
-        # pick an action at random
-        possible_next_states = self.state.generateChildren()
-        next_state = random.choice(possible_next_states)
-        return next_state
 
     # approximating Q by the estimate of the state I end up in
     def get_approx_Q(self, state: GameState) -> float:
         features = self.normalize_features(state.features)
         return sum([self.weights[i] * features[i] for i in range(len(self.weights))])
 
-    # linesCleared, spikiness, covered, maxHeight, perfectClear, tspin, tspinmini
+    # linesCleared 0, 1, 2, 3, 4, perfectClear, maxHeight, spikiness, covered, gaps, overHalf
     def normalize_features(self, features: List[float]) -> List[float]:
         normalized_features = deepcopy(features)
 
-        normalized_features[0] = min_max_scaling(normalized_features[0], 0, 5)
-        normalized_features[1] = min_max_scaling(normalized_features[1], 0, 20)
-        normalized_features[2] = min_max_scaling(normalized_features[2], 0, 20)
-        normalized_features[3] = min_max_scaling(normalized_features[3], 0, 20)
-        normalized_features[4] = 1 if normalized_features[4] else 0
-        # tspin and tspin mini not normalized
-
+        normalized_features[0] = 0 if not normalized_features[0] else 1
+        for i in range(6, 11):
+            normalized_features[i] = min_max_scaling(normalized_features[i], 0, 20)
         return normalized_features
 
     def epsilon_greedy(self, next_states: List["GameState"]) -> GameState:

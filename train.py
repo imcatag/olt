@@ -2,4 +2,4 @@ from env import *
 
 env = Env()
 
-env.train(20)
+env.train(10)
