@@ -14,7 +14,8 @@ class Piece(Enum):
     Z = 6
     NULLPIECE = 7
 
-weights = {'lineClears' : [0, 1, 2, 3, 4], 'TSpin' : [0, 1, 4, 6] , 'TSpinMini' : [0, 1, 1], 'perfectClear' : 10, 'height': -0.4, 'spikiness' : -0.5, 'covered' : -0.4}
+weights_old = {'lineClears' : [0, 1, 2, 3, 4], 'TSpin' : [0, 1, 4, 6] , 'TSpinMini' : [0, 1, 1], 'perfectClear' : 10, 'height': -0.4, 'spikiness' : -0.5, 'covered' : -0.4}
+weights = {'0' : 0, '1' : -1.5, '2' : -1.5, '3' : -1, '4' : 4, 'perfectClear' : 10, 'height' : -0.4, 'spikiness' : -0.5, 'covered' : -0.4, 'gaps' : -3, 'halfHeight' : -0.1}
 
 class Vector2Int:
     # has x and y
@@ -53,7 +54,7 @@ globalHeight = 40
 defaultbag = [Piece.T, Piece.J, Piece.Z, Piece.O, Piece.S, Piece.L, Piece.I]
 pieceQueue = []
 
-for i in range(10000):
+for i in range(20000):
     shuffle(defaultbag)
     pieceQueue += defaultbag
 
@@ -372,7 +373,7 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
     for i in range(newBoard.width - 1):
         spikiness += max(abs(heights[i] - heights[i + 1]) - 1, 0)
 
-    # calculate 0s covered by 1s
+    # calculate 0s covered by 1s anywhere above
     found1 = [False for _ in range(newBoard.width)]
     covered = 0
 
@@ -383,15 +384,29 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
             elif found1[j]:
                 covered += 1
 
-    features = [linesCleared, spikiness, covered, maxHeight, perfectClear, 0 if not tspin else linesCleared, 0 if not tspinmini else linesCleared]
+    gaps = 0
+    # calculate 0s with 1s right above
+    for i in range(maxHeight - 2, -1, -1):
+        for j in range(newBoard.width):
+            gaps += (newBoard.board[i][j] == 0) and (newBoard.board[i+1][j] == 1)
+
+    overHalf = 0
+    # calculate 1s over half height
+    for i in range(newBoard.height / 2, newBoard.height):
+        for j in range(newBoard.width):
+            overHalf += newBoard.board[i][j]
+
+    # weights = {'0' : 0, '1' : -1.5, '2' : -1.5, '3' : -1, '4' : 4, 'perfectClear' : 10, 'height' : -0.4, 'spikiness' : -0.5, 'covered' : -0.4, 'gaps' : -3, 'halfHeight' : -0.1}
+    features = weights.values()
     score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + perfectClear * weights['perfectClear']
     
-    if tspin:
-        score += weights['TSpin'][linesCleared]
-    elif tspinmini:
-        score += weights['TSpinMini'][linesCleared]
-    else:
-        score += weights['lineClears'][linesCleared]
+    # if tspin:
+    #     score += weights['TSpin'][linesCleared]
+    # elif tspinmini:
+    #     score += weights['TSpinMini'][linesCleared]
+    # else:
+    score += weights[str(linesCleared)]
+    score += weights['halfHeight'] * overHalf
 
     return (newBoard, score, features)
 

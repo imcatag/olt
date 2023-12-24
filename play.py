@@ -33,4 +33,4 @@ while True:
 
     print(state)
     state = deepcopy(next_state)
-    # sleep(0.2)
+    # sleep(0.6)

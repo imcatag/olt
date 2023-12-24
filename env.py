@@ -11,7 +11,7 @@ class Env:
         self.board = Board()
         self.state = GameState(self.board, pieceQueue[0])
         # linesCleared, spikiness, covered, maxHeight, perfectClear, tspin, tspinmini
-        self.weights = [0.1 for _ in range(7)]
+        self.weights = [3, -5, -20, -1, 7, 10, -2] #  [0.1 for _ in range(7)]
         self.alpha = 0.5
         self.epsilon = 0.05
 
