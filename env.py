@@ -22,69 +22,59 @@ class Env:
         return next_state
 
     # approximating Q by the estimate of the state I end up in
-    def get_approx_Q(self, board: Board, action: Placement) -> float:
-        _, _, new_state_features = PlacePieceAndEvaluate(board, action)
-        return sum(
-            [self.weights[i] * new_state_features[i] for i in range(len(self.weights))]
-        )
+    def get_approx_Q(self, state: GameState) -> float:
+        features = self.normalize_features(state.features)
+        return sum([self.weights[i] * features[i] for i in range(len(self.weights))])
 
     # linesCleared, spikiness, covered, maxHeight, perfectClear, tspin, tspinmini
-    def normalize_features(self, features: List[float])->List[float]:
+    def normalize_features(self, features: List[float]) -> List[float]:
         normalized_features = deepcopy(features)
-        
+
         normalized_features[0] = min_max_scaling(normalized_features[0], 0, 5)
-        normalized_features[1] = -min_max_scaling(normalized_features[1], 0, 20)
-        normalized_features[2] = -min_max_scaling(normalized_features[2], 0, 20)
-        normalized_features[3] = -min_max_scaling(normalized_features[3], 0, 20)
+        normalized_features[1] = min_max_scaling(normalized_features[1], 0, 20)
+        normalized_features[2] = min_max_scaling(normalized_features[2], 0, 20)
+        normalized_features[3] = min_max_scaling(normalized_features[3], 0, 20)
         normalized_features[4] = 1 if normalized_features[4] else 0
-        # tspin and tspin mini not normalized 
+        # tspin and tspin mini not normalized
 
         return normalized_features
-        
-    def epsilon_greedy(
-        self, board: Board, possible_actions: List[Placement]
-    ) -> Placement:
+
+    def epsilon_greedy(self, next_states: List["GameState"]) -> GameState:
         if random.uniform(0, 1) < self.epsilon:
-            return random.choice(possible_actions)
-        return max(possible_actions, key=lambda x: self.get_approx_Q(board, x))
+            return random.choice(next_states)
+        return max(next_states, key=lambda x: self.get_approx_Q(x))
 
-    def train(self, num_episodes=10, gamma=0.5):
-        possible_actions = self.state.board.findPlacements(self.state.piece)
-        action = self.epsilon_greedy(self.state.board, possible_actions)
-        new_board, reward, new_state_features = PlacePieceAndEvaluate(
-            self.state.board, action
-        )
+    def update_weights(self, delta: float, features):
+        self.weights = [
+            self.weights[i]
+            + self.alpha
+            * delta
+            * features[i]
+            for i in range(len(self.weights))
+        ]
 
+    def train(self, num_episodes=10, gamma=0.7):
         for _ in range(num_episodes):
-            old_board = deepcopy(self.state.board)
-            self.state.board = deepcopy(new_board)
-            self.state.pieceCount += 1
-            new_possible_actions = self.state.board.findPlacements(
-                pieceQueue[self.state.pieceCount]
-            )
-
-            if len(new_possible_actions) == 0:
-                # terminal state case
-                pass
-
-            # choose new action
-            new_action = self.epsilon_greedy(self.state.board, new_possible_actions)
-            new_board, _, _ = PlacePieceAndEvaluate(self.state.board, new_action)
-
-            self.weights = [
-                self.weights[i]
-                + self.alpha
-                * (
-                    reward
-                    + gamma * self.get_approx_Q(new_board, new_action)
-                    - self.get_approx_Q(old_board, action)
-                )
-                * new_state_features[i]
-                for i in range(len(self.weights))
-            ]
-
-            action = new_action
+            self.state = GameState(self.board, pieceQueue[self.state.pieceCount + 1])
             print(self.weights)
+
+            while True:
+                # print(self.state)
+                possible_next_states = self.state.generateChildren()
+                next_state = self.epsilon_greedy(possible_next_states)
+                reward = next_state.evaluation
+                features = self.normalize_features(next_state.features)
+
+                second_next_possible_states = next_state.generateChildren()
+                # check if next_state is terminal
+                if len(second_next_possible_states) == 0:
+                    self.update_weights(reward - self.get_approx_Q(next_state), features)
+                    break
+
+                second_next_state = self.epsilon_greedy(second_next_possible_states)
+                self.update_weights(reward + gamma * self.get_approx_Q(second_next_state) - self.get_approx_Q(next_state), features)
+
+                self.state = deepcopy(next_state)
 
 
 env = Env()
