@@ -288,7 +288,7 @@ class Board:
             
         return finalPlacements
 
-def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float):
+def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, List[float]):
     newBoard = Board(board.width, board.height, board.board)
     score = 0
 
@@ -355,7 +355,7 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float):
     maxHeight = newBoard.maxHeight()
 
     # check for perfect clear - if bottom line is empty, perfect clear
-    perfectClear = 1 in newBoard.board[0]
+    perfectClear = 1 not in newBoard.board[0]
 
     # calculate spikiness
     
@@ -383,6 +383,7 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float):
             elif found1[j]:
                 covered += 1
 
+    features = [linesCleared, spikiness, covered, maxHeight, perfectClear, 0 if not tspin else linesCleared, 0 if not tspinmini else linesCleared]
     score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + perfectClear * weights['perfectClear']
     
     if tspin:
@@ -392,7 +393,7 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float):
     else:
         score += weights['lineClears'][linesCleared]
 
-    return (newBoard, score)
+    return (newBoard, score, features)
 
 class GameState:
     def __init__(self, board: Board, piece: Piece, heldPiece: Piece = Piece.NULLPIECE, pieceCount: int = 0, evaluation : float = 0):
@@ -413,7 +414,7 @@ class GameState:
         else:
             placements = self.board.findPlacements(self.piece)
             for placement in placements:
-                newBoard, newEvaluation = PlacePieceAndEvaluate(self.board, placement)
+                newBoard, newEvaluation, _ = PlacePieceAndEvaluate(self.board, placement)
                 children.append(GameState(newBoard, pieceQueue[self.pieceCount + 1], self.heldPiece, self.pieceCount + 1, newEvaluation + self.evaluation))
                 
         
@@ -426,7 +427,7 @@ class GameState:
             placements = newState.board.findPlacements(newState.piece, True)
 
             for placement in placements:
-                newBoard, newEvaluation = PlacePieceAndEvaluate(newState.board, placement)
+                newBoard, newEvaluation, _ = PlacePieceAndEvaluate(newState.board, placement)
                 children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation + newState.evaluation))
 
         if self.heldPiece != Piece.NULLPIECE:
@@ -438,7 +439,7 @@ class GameState:
             placements = newState.board.findPlacements(newState.piece, True)
 
             for placement in placements:
-                newBoard, newEvaluation = PlacePieceAndEvaluate(newState.board, placement)
+                newBoard, newEvaluation, _ = PlacePieceAndEvaluate(newState.board, placement)
                 children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation + newState.evaluation))
 
         return children
@@ -452,25 +453,27 @@ class GameState:
 
         return result
 
-# create initial board
-board = Board()
+# # create initial board
+# board = Board()
 
-# create initial game state
-gameState = GameState(board, pieceQueue[0])
+# # create initial game state
+# gameState = GameState(board, pieceQueue[0])
 
-print(gameState)
+# print(gameState)
 
-# create initial children
-children = gameState.generateChildren()
+# # create initial children
+# children = gameState.generateChildren()
 
-# input()
+# # input()
 
-while True:
-    # choose child with highest evaluation
-    child = max(children, key = lambda x: x.evaluation)
+# while True:
+#     if len(children) == 0:
+#         break 
+#     # choose child with highest evaluation
+#     child = max(children, key = lambda x: x.evaluation)
     
-    # print child
-    print(child)
+#     # print child
+#     print(child)
 
-    # generate children for child
-    children = child.generateChildren()
+#     # generate children for child
+#     children = child.generateChildren()
