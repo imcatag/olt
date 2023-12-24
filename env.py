@@ -11,7 +11,7 @@ class Env:
         self.board = Board()
         self.state = GameState(self.board, pieceQueue[0])
         # linesCleared, spikiness, covered, maxHeight, perfectClear, tspin, tspinmini
-        self.weights = [0.1 for _ in range(7)]
+        self.weights = [0.1 for _ in range(8)]
         self.alpha = 0.5
         self.epsilon = 0.05
 
@@ -26,7 +26,7 @@ class Env:
         features = self.normalize_features(state.features)
         return sum([self.weights[i] * features[i] for i in range(len(self.weights))])
 
-    # linesCleared, spikiness, covered, maxHeight, perfectClear, tspin, tspinmini
+    # linesCleared, spikiness, covered, gaps, maxHeight, perfectClear, tspin, tspinmini
     def normalize_features(self, features: List[float]) -> List[float]:
         normalized_features = deepcopy(features)
 
@@ -34,7 +34,8 @@ class Env:
         normalized_features[1] = min_max_scaling(min(normalized_features[1], 20), 0, 20)
         normalized_features[2] = min_max_scaling(min(normalized_features[2], 20), 0, 20)
         normalized_features[3] = min_max_scaling(min(normalized_features[3], 20), 0, 20)
-        normalized_features[4] = 1 if normalized_features[4] else 0
+        normalized_features[4] = min_max_scaling(min(normalized_features[3], 20), 0, 20)
+        normalized_features[5] = 1 if normalized_features[5] else 0
         # tspin and tspin mini not normalized
 
         return normalized_features
@@ -50,7 +51,7 @@ class Env:
             for i in range(len(self.weights))
         ]
 
-    def train(self, num_episodes=10, gamma=0.7):
+    def train(self, num_episodes=60, gamma=0.7):
         for _ in range(num_episodes):
             self.state = GameState(self.board, pieceQueue[self.state.pieceCount + 1])
             print(self.weights)

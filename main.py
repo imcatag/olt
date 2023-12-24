@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import List
 from collections import deque
-from random import shuffle, choice
+from random import shuffle, choice, uniform, randint
 from copy import deepcopy
 
 class Piece(Enum):
@@ -14,7 +14,7 @@ class Piece(Enum):
     Z = 6
     NULLPIECE = 7
 
-weights = {'lineClears' : [0, 2, 3, 4, 5], 'TSpin' : [0, 1, 4, 6] , 'TSpinMini' : [0, 1, 1], 'perfectClear' : 10, 'height': -0.4, 'spikiness' : -0.5, 'covered' : -0.4}
+weights = {'lineClears' : [0, 2, 3, 4, 5], 'TSpin' : [0, 1, 4, 6] , 'TSpinMini' : [0, 1, 1], 'perfectClear' : 10, 'height': -0.4, 'spikiness' : -0.5, 'covered' : -0.4, 'gaps' : -1.5}
 
 class Vector2Int:
     # has x and y
@@ -139,6 +139,7 @@ Flips = [
 
 TSpinFacingCorners = [[Vector2Int(-1, 1), Vector2Int(1, 1)],
         [Vector2Int(1, 1), Vector2Int(1, -1)],
+
         [Vector2Int(1, -1), Vector2Int(-1, -1)],
         [Vector2Int(-1, -1), Vector2Int(-1, 1)]]
 
@@ -383,8 +384,14 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
             elif found1[j]:
                 covered += 1
 
-    features = [linesCleared, spikiness, covered, maxHeight, perfectClear, 0 if not tspin else linesCleared, 0 if not tspinmini else linesCleared]
-    score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + perfectClear * weights['perfectClear']
+    gaps = 0
+    # calculate 0s with 1s right above
+    for i in range(maxHeight - 2, -1, -1):
+        for j in range(newBoard.width):
+            gaps += (newBoard.board[i][j] == 0) and (newBoard.board[i+1][j] == 1)
+
+    features = [linesCleared, spikiness, covered, gaps, maxHeight, perfectClear, 0 if not tspin else linesCleared, 0 if not tspinmini else linesCleared]
+    score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + perfectClear * weights['perfectClear'] + gaps * weights['gaps']
     
     if tspin:
         score += weights['TSpin'][linesCleared]
@@ -392,6 +399,27 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
         score += weights['TSpinMini'][linesCleared]
     else:
         score += weights['lineClears'][linesCleared]
+
+    # 1/20 chance to recieve 4 lines of garbage
+    # 1/10 chance to recieve 1 line of garbage
+
+    recieved4 = uniform(0, 1) < 1/50
+    recieved1 = uniform(0, 1) < 1/50
+
+    if recieved4 and linesCleared < 4:
+        garbageHole = randint(0, newBoard.width - 1)
+        garbageLine = [1 for i in range(newBoard.width)]
+        garbageLine[garbageHole] = 0
+
+        garbageLines = [deepcopy(garbageLine) for i in range(4)]
+        newBoard.board = (garbageLines + newBoard.board)[:-4]
+
+    if recieved1 and linesCleared == 0:
+        garbageHole = randint(0, newBoard.width - 1)
+        garbageLine = [1 for i in range(newBoard.width)]
+        garbageLine[garbageHole] = 0
+
+        newBoard.board = ([deepcopy(garbageLine)] + newBoard.board)[:-1]
 
     return (newBoard, score, features)
 
