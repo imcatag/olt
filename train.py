@@ -2,4 +2,4 @@ from env import *
 
 env = Env()
 
-env.train()
+env.train(_lambda=0.5)

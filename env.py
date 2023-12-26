@@ -14,6 +14,7 @@ class Env:
         self.weights = [0.1 for _ in range(7)]
         self.alpha = 0.5
         self.epsilon = 0.05
+        self.moves_count = 0
 
     def step(self):
         # pick an action at random
@@ -44,47 +45,57 @@ class Env:
             return random.choice(next_states)
         return max(next_states, key=lambda x: self.get_approx_Q(x))
 
-    def update_weights(self, delta: float, features):
+    def update_weights(self, delta: float, features: List[float], traces: List[float], q: float, old_q: float):
         self.weights = [
-            self.weights[i] + self.alpha * delta * features[i]
+            self.weights[i] + self.alpha * (delta + q - old_q) * traces[i]
+            - self.alpha * (q - old_q) * features[i]
             for i in range(len(self.weights))
         ]
 
-    def train(self, num_episodes=10, gamma=0.7):
+    def update_traces(self, old_z: List[float], gamma: float, _lambda: float, x: List[float]):
+        feature_traces_sum = sum([
+            old_z[i] * x[i] for i in range(len(self.weights))
+        ])
+        return [
+            gamma * _lambda * old_z[i] +
+            (1 - self.alpha * _lambda * gamma * feature_traces_sum) * x[i]
+            for i in range(len(self.weights))
+        ]
+
+    def train(self, num_episodes=10, gamma=0.7, _lambda=0.5):
         for _ in range(num_episodes):
-            self.state = GameState(self.board, pieceQueue[self.state.pieceCount + 1])
             print(self.weights)
+
+            self.state = GameState(self.board, pieceQueue[self.state.pieceCount + 1])
             second_next_possible_states = None
+            z = [0 for _ in range(len(self.weights))] # eligibility traces vector
+            old_q = 0
 
             while True:
-                # if _ == 5 and self.state.board.maxHeight >= 10:
-                #     print("here")
-
-                possible_next_states = (
-                    second_next_possible_states
-                    if second_next_possible_states != None
-                    else self.state.generateChildren()
-                )
+                self.moves_count += 1
+                if self.moves_count % 1000 == 0:
+                    print(self.moves_count)
+                possible_next_states = self.state.generateChildren()
                 next_state = self.epsilon_greedy(possible_next_states)
                 current_q = self.get_approx_Q(next_state)
-                reward = next_state.evaluation
                 features = self.normalize_features(next_state.features)
+                reward = next_state.evaluation
 
                 second_next_possible_states = next_state.generateChildren()
                 # check if next_state is terminal
                 if len(second_next_possible_states) == 0:
-                    self.update_weights(reward - current_q, features)
                     break
 
                 second_next_state = self.epsilon_greedy(second_next_possible_states)
                 next_q = self.get_approx_Q(second_next_state)
-                self.update_weights(
-                    reward + gamma * next_q - current_q,
-                    features,
-                )
 
+                z = self.update_traces(z, gamma, _lambda, features)
+                delta = reward + gamma * next_q - current_q
+                self.update_weights(delta, features, z, current_q, old_q)
+
+                old_q = next_q
                 self.state = deepcopy(next_state)
-                self.alpha = 2 / (self.state.board.maxHeight() + 1) # TODO: remove
+                self.alpha = 2 / (self.state.board.maxHeight() + 1)
 
 
 # env = Env()
