@@ -527,7 +527,7 @@ class GameState:
     
 #     # print child
 #     for row in child.get_game_repr():
-#             print(' '.join(map(str, row)))
+#         print(' '.join(map(str, row)))
 
 #     # generate children for child
 #     children = child.generateChildren()

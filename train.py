@@ -2,4 +2,4 @@ from deep_q import *
 
 agent = DQNAgent()
 
-agent.train()
+agent.train(100)

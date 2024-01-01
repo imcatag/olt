@@ -1,4 +1,5 @@
 import random
+import time
 import numpy as np
 from main import *
 import tensorflow as tf
@@ -8,7 +9,7 @@ from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten
 
 
 class DQNAgent:
-    def __init__(self, input_shape = (20, 20, 1)):
+    def __init__(self, input_shape = (20, 20, 1), play_mode=False):
         self.empty_board = Board()
         self.state = GameState(self.empty_board, pieceQueue[0])
         self.lr = 0.001
@@ -17,6 +18,7 @@ class DQNAgent:
         self.exploration_prob_decay = 0.005
         self.batch_size = 32
         self.total_steps = 0
+        self.play_mode = play_mode
 
         # a list of dictionaries that store (s_t, a_t, r_t, s_t+1)
         self.memory_buffer = list()
@@ -30,26 +32,26 @@ class DQNAgent:
             MaxPooling2D(pool_size=(2, 2)),
             Flatten(),
             Dense(128, activation='relu'),
-            Dense(1, activation='linear')  # Output layer for regression with linear activation
+            Dense(1, activation='linear') 
         ])
 
-        self.model.summary()
+        if not self.play_mode:
+            self.model.summary()
 
-        # Compile the model
         self.model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])  # RMSProp could be another choice here
 
     def get_model_input_from_repr(self, state_repr: List[List[int]]):
         return np.array(state_repr).reshape(-1, 20, 20, 1)
 
     # game_state_repr = the 20x20 board
-    def get_approx_Q(self, game_state_repr: List[List[int]], play_mode=False) -> float:
+    def get_approx_Q(self, game_state_repr: List[List[int]]) -> float:
         # add img std? https://www.tensorflow.org/api_docs/python/tf/image/per_image_standardization]
         input_data = self.get_model_input_from_repr(game_state_repr)
-        verbose = 0 if play_mode else 1
+        verbose = 0 if self.play_mode else 1
         return self.model.predict(input_data, verbose=verbose)
 
     def get_next_state(self, next_states: List["GameState"]) -> GameState:
-        if random.uniform(0, 1) < 1 + self.exploration_prob: # TODO: remove 1
+        if random.uniform(0, 1) < self.exploration_prob:
             return random.choice(next_states)
         return max(next_states, key=lambda x: self.get_approx_Q(x.get_game_repr()))
 
@@ -90,9 +92,9 @@ class DQNAgent:
         self.model.fit(np.array(training_data), np.array(training_labels))
 
     def train(self, n_episodes=10):
-        for _ in range(n_episodes):
+        for ep in range(n_episodes):
             print('<------------------------------->')
-            print('done episode')
+            print('episode: ', ep)
             print('exploration rate: ', self.exploration_prob)
             print('<------------------------------->')
             self.state = GameState(self.empty_board, pieceQueue[self.state.pieceCount + 1])
@@ -129,11 +131,12 @@ class DQNAgent:
         state = GameState(board, pieceQueue[0])
 
         while True:
+            print('start episode time:', time.time())
             next_possible_states = state.generateChildren()
 
             if len(next_possible_states) == 0:
                 break
 
-            next_state = max(next_possible_states, key=lambda x: self.get_approx_Q(x.get_game_repr(), True))
+            next_state = max(next_possible_states, key=lambda x: self.get_approx_Q(x.get_game_repr()))
             print(state)
             state = deepcopy(next_state)
