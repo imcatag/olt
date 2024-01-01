@@ -1,4 +1,5 @@
 from enum import Enum
+from time import sleep
 from typing import List
 from collections import deque
 from random import shuffle, choice, uniform, randint
@@ -64,7 +65,7 @@ Cells = {
         [Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(2, 0)],
         [Vector2Int(0, -1), Vector2Int(0, 0), Vector2Int(0, 1), Vector2Int(0, 2)]
     ],
-    Piece.J: [
+    Piece.J: [ # TODO: J piece and L piece are the other way round?
         [Vector2Int(-1, 1), Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0)],
         [Vector2Int(1, 1), Vector2Int(0, 1), Vector2Int(0, 0), Vector2Int(0, -1)],
         [Vector2Int(-1, 0), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(1, -1)],
@@ -82,7 +83,7 @@ Cells = {
         [Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(0, 0), Vector2Int(1, 0)],
         [Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(0, 0), Vector2Int(1, 0)]
     ],
-    Piece.S: [
+    Piece.S: [ # TODO: S piece and Z piece are reversed?
         [Vector2Int(0, 1), Vector2Int(1, 1), Vector2Int(-1, 0), Vector2Int(0, 0)],
         [Vector2Int(0, 1), Vector2Int(0, 0), Vector2Int(1, 0), Vector2Int(1, -1)],
         [Vector2Int(-1, -1), Vector2Int(0, -1), Vector2Int(0, 0), Vector2Int(1, 0)],
@@ -431,6 +432,33 @@ class GameState:
         self.pieceCount = pieceCount
         self.evaluation = evaluation
         self.features = features
+    
+    def get_game_repr(self):
+        game_state_width = self.board.height // 2
+        game_state_repr = [[0] * game_state_width for _ in range(game_state_width)] # make the state repr 20x20 by default
+
+        for i in range(game_state_width):
+            for j in range(self.board.width):
+                game_state_repr[i][j] = self.board.board[i][j]
+
+        # place current piece and queue pieces
+        piece = self.piece
+        for i in range(7):
+            # start 5 squares to the right of where the initial board ends
+            position_for_piece = Vector2Int(self.board.width + 5, i * 2 + 1)
+            for j in range(4):
+                cell = position_for_piece + Cells[piece][0][j]
+                game_state_repr[cell.y][cell.x] = 1
+            piece = pieceQueue[self.pieceCount + i + 1]
+
+        # add held piece to the bottom of the board
+        if self.heldPiece != Piece.NULLPIECE:
+            position_for_hold_piece = Vector2Int(self.board.width + 5, game_state_width - 2)
+            for j in range(4):
+                cell = position_for_hold_piece + Cells[self.heldPiece][0][j]
+                game_state_repr[cell.y][cell.x] = 1
+
+        return game_state_repr
 
     def generateChildren(self) -> List['GameState']:
 
@@ -488,11 +516,8 @@ class GameState:
 # # create initial game state
 # gameState = GameState(board, pieceQueue[0])
 
-# print(gameState)
-
-# # create initial children
+# # # create initial children
 # children = gameState.generateChildren()
-# # input()
 
 # while True:
 #     if len(children) == 0:
@@ -501,7 +526,11 @@ class GameState:
 #     child = max(children, key = lambda x: x.evaluation)
     
 #     # print child
-#     print(child)
+#     for row in child.get_game_repr():
+#             print(' '.join(map(str, row)))
 
 #     # generate children for child
 #     children = child.generateChildren()
+
+#     print("<-------------------------->")
+#     sleep(1)

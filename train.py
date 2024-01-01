@@ -1,5 +1,5 @@
-from env import *
+from deep_q import *
 
-env = Env()
+agent = DQNAgent()
 
-env.train()
+agent.train()
