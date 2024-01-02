@@ -404,23 +404,23 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
     # 1/20 chance to recieve 4 lines of garbage
     # 1/10 chance to recieve 1 line of garbage
 
-    recieved4 = uniform(0, 1) < 1/50
-    recieved1 = uniform(0, 1) < 1/50
+    # recieved4 = uniform(0, 1) < 1/50
+    # recieved1 = uniform(0, 1) < 1/50
 
-    if recieved4 and linesCleared < 4:
-        garbageHole = randint(0, newBoard.width - 1)
-        garbageLine = [1 for i in range(newBoard.width)]
-        garbageLine[garbageHole] = 0
+    # if recieved4 and linesCleared < 4:
+    #     garbageHole = randint(0, newBoard.width - 1)
+    #     garbageLine = [1 for i in range(newBoard.width)]
+    #     garbageLine[garbageHole] = 0
 
-        garbageLines = [deepcopy(garbageLine) for i in range(4)]
-        newBoard.board = (garbageLines + newBoard.board)[:-4]
+    #     garbageLines = [deepcopy(garbageLine) for i in range(4)]
+    #     newBoard.board = (garbageLines + newBoard.board)[:-4]
 
-    if recieved1 and linesCleared == 0:
-        garbageHole = randint(0, newBoard.width - 1)
-        garbageLine = [1 for i in range(newBoard.width)]
-        garbageLine[garbageHole] = 0
+    # if recieved1 and linesCleared == 0:
+    #     garbageHole = randint(0, newBoard.width - 1)
+    #     garbageLine = [1 for i in range(newBoard.width)]
+    #     garbageLine[garbageHole] = 0
 
-        newBoard.board = ([deepcopy(garbageLine)] + newBoard.board)[:-1]
+    #     newBoard.board = ([deepcopy(garbageLine)] + newBoard.board)[:-1]
 
     return (newBoard, score, features)
 

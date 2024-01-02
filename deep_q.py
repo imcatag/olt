@@ -15,15 +15,15 @@ class DQNAgent:
         self.gamma = 0.95
         self.exploration_prob = 1.0
         self.exploration_prob_decay = 0.005
-        self.min_exploration_prob = 0.05
-        self.batch_size = 32
+        self.min_exploration_prob = 0.2
+        self.batch_size = 64
         self.total_steps = 0
         self.play_mode = play_mode
         self.total_pieces_placed = 0
 
         # a list of dictionaries that store (s_t, a_t, r_t, s_t+1)
         self.memory_buffer = list()
-        self.max_memory_buffer = 2000
+        self.max_memory_buffer = 3000
 
         # Define a model that returns the expected value of the given state + action
         self.model = Sequential([
