@@ -83,8 +83,7 @@ class DQNAgent:
             current_q = self.get_approx_Q(experience["current_state_board"])
             q_target = experience["reward"]
             if not experience["terminated"]:
-                input_data = self.get_model_input_from_repr(experience["next_state_board"])
-                next_q = self.model(input_data)
+                next_q = self.get_approx_Q(experience["next_state_board"])
                 q_target += self.gamma * next_q
 
             training_data.append(experience["current_state_board"])
