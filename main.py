@@ -543,7 +543,7 @@ l5 = [[1, 1, 1, 1, 1, 1, 1, 0, 1, 0],
       [1, 1, 1, 1, 1, 1, 1 ,0, 1, 0],
       [1, 1, 1, 1, 1, 1, 1, 0, 1, 0],
       [1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
-      [1, 1, 1, 1, 1, 1, 0, 0, 0, 0],]
+      [1, 1, 1, 1, 1, 1, 1, 0, 0, 0],] # ideally use I to set up t spin double
 
 gs = GameState(Board(10, 40, l5), Piece.T, Piece.I, 0)
 # # create initial board
