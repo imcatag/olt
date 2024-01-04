@@ -15,7 +15,7 @@ class Piece(Enum):
     Z = 6
     NULLPIECE = 7
 
-weights = {'lineClears' : [0, 2, 3, 4, 5], 'TSpin' : [0, 1, 4, 6] , 'TSpinMini' : [0, 1, 1], 'perfectClear' : 10, 'height': -0.4, 'spikiness' : -0.5, 'covered' : -0.4, 'gaps' : -1.5}
+weights = {'lineClears' : [0, 2, 3, 4, 5], 'TSpin' : [0, 1, 4, 6] , 'TSpinMini' : [0, 1, 1], 'wellKnown' : 3, 'perfectClear' : 10, 'height': -0.4, 'spikiness' : -0.5, 'covered' : -0.4, 'gaps' : -1.5}
 
 class Vector2Int:
     # has x and y
@@ -343,6 +343,7 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
     maxHeight = newBoard.maxHeight()
     shouldClear = [True for _ in range(maxHeight)]
     linesCleared = 0
+    
 
     for i in range(maxHeight):
         for j in range(newBoard.width):
@@ -394,8 +395,27 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
         for j in range(newBoard.width):
             gaps += (newBoard.board[i][j] == 0) and (newBoard.board[i+1][j] == 1)
 
+    # look for well knows T spin setups
+    # 101
+    # 000
+    # 100
+    # OR
+    # 101
+    # 000
+    # 001
+    wellKnown = False
+    for i in range(maxHeight - 2, -1, -1):
+        for j in range(newBoard.width - 2):
+            # do the 9 checks
+            if newBoard.board[i][j] == 1 and newBoard.board[i][j+1] == 0 and newBoard.board[i][j+2] == 1 and newBoard.board[i+1][j] == 0 and newBoard.board[i+1][j+1] == 0 and newBoard.board[i+1][j+2] == 0 and newBoard.board[i+2][j] == 1 and newBoard.board[i+2][j+1] == 0 and newBoard.board[i+2][j+2] == 0:
+                wellKnown = True
+                break
+            if newBoard.board[i][j] == 1 and newBoard.board[i][j+1] == 0 and newBoard.board[i][j+2] == 1 and newBoard.board[i+1][j] == 0 and newBoard.board[i+1][j+1] == 0 and newBoard.board[i+1][j+2] == 1 and newBoard.board[i+2][j] == 0 and newBoard.board[i+2][j+1] == 0 and newBoard.board[i+2][j+2] == 0:
+                wellKnown = True
+                break
+
     features = [linesCleared, spikiness, covered, gaps, maxHeight, perfectClear, 0 if not tspin else linesCleared, 0 if not tspinmini else linesCleared]
-    score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + perfectClear * weights['perfectClear'] + gaps * weights['gaps']
+    score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + perfectClear * weights['perfectClear'] + gaps * weights['gaps'] + wellKnown * weights['wellKnown']
     
     if tspin:
         score += weights['TSpin'][linesCleared]
@@ -588,7 +608,7 @@ exp7 = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
         [1, 1, 1, 1, 1, 1, 1, 0, 1, 1],
         [1, 1, 1, 1, 1, 1, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 0, 0, 0],]
+        [1, 1, 1, 1, 1, 1, 1, 0, 0, 0],] 
 
 gs = GameState(Board(10, 40, l5), Piece.T, Piece.I, 0)
 # # create initial board
