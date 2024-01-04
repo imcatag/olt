@@ -15,7 +15,7 @@ class Piece(Enum):
     Z = 6
     NULLPIECE = 7
 
-weights = {'lineClears' : [0, 2, 3, 4, 5], 'TSpin' : [0, 1, 4, 6] , 'TSpinMini' : [0, 1, 1], 'wellKnown' : 3, 'perfectClear' : 10, 'height': -0.4, 'spikiness' : -0.5, 'covered' : -0.4, 'gaps' : -1.5}
+weights = {'lineClears' : [0, -1.5, -1.5, -1, 5], 'TSpin' : [0, 4, 8, 16] , 'TSpinMini' : [0, 1, 1], 'wellKnown' : 6, 'perfectClear' : 10, 'height': -0.4, 'spikiness' : -0.5, 'covered' : -0.4, 'gaps' : -1.5, 'wastedT' : -2}
 
 class Vector2Int:
     # has x and y
@@ -154,6 +154,12 @@ class Move:
     def __init__(self, type: str, offset = 0):
         self.type = type
         self.offset = offset
+
+    def __str__(self) -> str:
+        return f"{self.type} {self.offset}"
+    
+    def __repr__(self) -> str:
+        return f"({self.type}, {self.offset})"
 
 class Placement:
     def __init__(self, piece: Piece, rotation: int, position: Vector2Int, path : List[Move] = []):
@@ -416,14 +422,25 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
 
     features = [linesCleared, spikiness, covered, gaps, maxHeight, perfectClear, -1 if not tspin else linesCleared, 0 if not tspinmini else linesCleared]
     score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + perfectClear * weights['perfectClear'] + gaps * weights['gaps'] + wellKnown * weights['wellKnown']
-    
+    wastedT = True
     if tspin:
         score += weights['TSpin'][linesCleared]
+        if linesCleared:
+            with open("tspins.txt", "a") as f:
+                f.write(str(board))
+                f.write("\n")
+                f.write(str(newBoard))
+                f.write("\n")
+                f.write(str(placement.path))
+                f.write("\n")
+                f.write("\n")
+            wastedT = False
     elif tspinmini:
         score += weights['TSpinMini'][linesCleared]
     else:
         score += weights['lineClears'][linesCleared]
 
+    score += weights['wastedT'] * wastedT
     # 1/20 chance to recieve 4 lines of garbage
     # 1/10 chance to recieve 1 line of garbage
 
@@ -480,6 +497,20 @@ class GameState:
             for j in range(4):
                 cell = position_for_hold_piece + Cells[self.heldPiece][0][j]
                 game_state_repr[cell.y][cell.x] = 1
+
+        if len(self.features) == 0:
+            return game_state_repr
+        
+        if self.features[6] == 2:
+            # add T-Spin indicator
+            for i in range(4):
+                game_state_repr[i][-1] = 1
+        elif self.features[6] == 3:
+            for i in range(6):
+                game_state_repr[i][-1] = 1
+        elif self.features[0] == 4:
+            for i in range(4):
+                game_state_repr[i][-1] = 1
 
         return game_state_repr
 

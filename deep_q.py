@@ -14,7 +14,7 @@ class DQNAgent:
         self.lr = 0.001
         self.gamma = 0.95
         self.exploration_prob = 1.0
-        self.exploration_prob_decay = 0.004
+        self.exploration_prob_decay = 0.003
         self.min_exploration_prob = 0.1
         self.batch_size = 64
         self.total_steps = 0
