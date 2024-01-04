@@ -62,7 +62,7 @@ class Env:
             for i in range(len(self.weights))
         ]
 
-    def train(self, num_episodes=10, gamma=0.7, _lambda=0.5):
+    def train(self, num_episodes=20, gamma=0.7, _lambda=0.5):
         for _ in range(num_episodes):
             print(self.weights)
 
@@ -96,8 +96,3 @@ class Env:
                 old_q = next_q
                 self.state = deepcopy(next_state)
                 self.alpha = 2 / (self.state.board.maxHeight() + 1)
-
-
-# env = Env()
-
-# env.train()
