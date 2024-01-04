@@ -14,12 +14,13 @@ class DQNAgent:
         self.lr = 0.001
         self.gamma = 0.95
         self.exploration_prob = 1.0
-        self.exploration_prob_decay = 0.005
-        self.min_exploration_prob = 0.2
+        self.exploration_prob_decay = 0.004
+        self.min_exploration_prob = 0.1
         self.batch_size = 64
         self.total_steps = 0
         self.play_mode = play_mode
         self.total_pieces_placed = 0
+        self.tspins_done = 0
 
         # a list of dictionaries that store (s_t, a_t, r_t, s_t+1)
         self.memory_buffer = list()
@@ -46,7 +47,6 @@ class DQNAgent:
 
     # game_state_repr = the 20x20 board
     def get_approx_Q(self, game_state_repr: List[List[int]]) -> float:
-        # add img std? https://www.tensorflow.org/api_docs/python/tf/image/per_image_standardization]
         input_data = self.get_model_input_from_repr(game_state_repr)
         return self.model(input_data)
 
@@ -103,6 +103,7 @@ class DQNAgent:
             print('episode: ', ep)
             print('exploration rate: ', self.exploration_prob)
             print('Total pieces placed: ', self.total_pieces_placed)
+            print('T-spins done: ', self.tspins_done)
             print('<------------------------------->')
             print('playing...')
             self.state = GameState(self.empty_board, pieceQueue[self.state.pieceCount + 1])
@@ -116,9 +117,10 @@ class DQNAgent:
                     break
                 
                 next_state = self.get_next_state(next_possible_states)
+                if next_state.features[6] >= 0: 
+                    self.tspins_done += 1 
                 self.total_pieces_placed += 1
                 reward = next_state.evaluation # not the best reward
-
                 self.total_steps += 1
 
                 if ep <= 275:
@@ -128,11 +130,12 @@ class DQNAgent:
                 
                 self.state = deepcopy(next_state)
 
-            if self.total_steps >= self.batch_size:
-                print('training...')
-                self.train_episode()
+                if self.total_steps >= self.batch_size: 
+                    if self.total_pieces_placed % 64 == 0: # make the nn train every 64 pieces placed 
+                        print('training...') 
+                        self.train_episode() 
             
-            if ep != 0 and ep % 50 == 0:
+            if ep != 0 and ep % 25 == 0:
                 self.model.save_weights(f'weights/episode_{ep}.hdf5')
 
         self.model.save_weights('recent_weights.hdf5')

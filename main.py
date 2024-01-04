@@ -54,7 +54,7 @@ globalHeight = 40
 defaultbag = [Piece.T, Piece.J, Piece.Z, Piece.O, Piece.S, Piece.L, Piece.I]
 pieceQueue = []
 
-for i in range(10000):
+for i in range(50000):
     shuffle(defaultbag)
     pieceQueue += defaultbag
 
@@ -414,7 +414,7 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
                 wellKnown = True
                 break
 
-    features = [linesCleared, spikiness, covered, gaps, maxHeight, perfectClear, 0 if not tspin else linesCleared, 0 if not tspinmini else linesCleared]
+    features = [linesCleared, spikiness, covered, gaps, maxHeight, perfectClear, -1 if not tspin else linesCleared, 0 if not tspinmini else linesCleared]
     score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + perfectClear * weights['perfectClear'] + gaps * weights['gaps'] + wellKnown * weights['wellKnown']
     
     if tspin:
