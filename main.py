@@ -410,7 +410,7 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
             if newBoard.board[i][j] == 1 and newBoard.board[i][j+1] == 0 and newBoard.board[i][j+2] == 1 and newBoard.board[i+1][j] == 0 and newBoard.board[i+1][j+1] == 0 and newBoard.board[i+1][j+2] == 0 and newBoard.board[i+2][j] == 1 and newBoard.board[i+2][j+1] == 0 and newBoard.board[i+2][j+2] == 0:
                 wellKnown = True
                 break
-            if newBoard.board[i][j] == 1 and newBoard.board[i][j+1] == 0 and newBoard.board[i][j+2] == 1 and newBoard.board[i+1][j] == 0 and newBoard.board[i+1][j+1] == 0 and newBoard.board[i+1][j+2] == 1 and newBoard.board[i+2][j] == 0 and newBoard.board[i+2][j+1] == 0 and newBoard.board[i+2][j+2] == 0:
+            if newBoard.board[i][j] == 1 and newBoard.board[i][j+1] == 0 and newBoard.board[i][j+2] == 1 and newBoard.board[i+1][j] == 0 and newBoard.board[i+1][j+1] == 0 and newBoard.board[i+1][j+2] == 0 and newBoard.board[i+2][j] == 0 and newBoard.board[i+2][j+1] == 0 and newBoard.board[i+2][j+2] == 1:
                 wellKnown = True
                 break
 
