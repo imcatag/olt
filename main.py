@@ -170,6 +170,9 @@ class Board:
             self.board = [[0 for _ in range(width)] for _ in range(height)]
         else:
             self.board = deepcopy(board)
+            # add lines to board if not enough lines
+            while len(self.board) < height:
+                self.board += [[0 for _ in range(width)]]
 
     def maxHeight(self) -> int:
         for i in range(self.height - 1, -1, -1):
@@ -510,6 +513,39 @@ class GameState:
 
         return result
 
+l1 = [[1, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+      [1, 1, 1, 1, 1, 0, 0, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+      [1, 1, 0, 0, 0, 0, 0, 1, 1, 1],
+      [1, 1, 0, 0, 0, 0, 1, 1, 1, 1],]  # t spin triple
+
+l2 = [[1, 1, 1, 1, 1, 0, 0, 1, 1, 1],
+      [1, 1, 1, 1, 1, 0, 0, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+      [1, 1, 0, 0, 0, 0, 0, 1, 1, 1],
+      [1, 1, 0, 0, 0, 0, 1, 1, 1, 1],] # t spin double in t spin triple type hole
+
+l3 = [[1, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+      [1, 1, 1, 1, 1, 0, 0, 0, 1, 1],
+      [1, 1, 0, 0, 0, 0, 0, 1, 1, 1],] # t spin double
+
+l4 = [[1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+      [1, 1, 1, 1, 1, 1, 1 ,0, 0, 0],
+      [1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+      [1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+      [1, 1, 0, 0, 1, 1, 1, 1, 1, 1],
+      [1, 1, 0, 0, 0, 0, 1, 1, 1, 1],
+      [1, 1, 1, 0, 0, 0, 1, 1, 1, 1],] # t spin double after a lot of moves
+
+l5 = [[1, 1, 1, 1, 1, 1, 1, 0, 1, 0],
+      [1, 1, 1, 1, 1, 1, 1 ,0, 1, 0],
+      [1, 1, 1, 1, 1, 1, 1, 0, 1, 0],
+      [1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+      [1, 1, 1, 1, 1, 1, 0, 0, 0, 0],]
+
+gs = GameState(Board(10, 40, l5), Piece.T, Piece.I, 0)
 # # create initial board
 # board = Board()
 
