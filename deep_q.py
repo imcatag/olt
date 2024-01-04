@@ -120,7 +120,11 @@ class DQNAgent:
                 reward = next_state.evaluation # not the best reward
 
                 self.total_steps += 1
-                self.store_episode(self.state, reward, next_state, terminated) 
+
+                if ep <= 275:
+                    self.store_episode(self.state, reward, next_state, terminated) 
+                elif next_state.features[4] <= 10 or random.uniform(0, 1) < self.exploration_prob:
+                    self.store_episode(self.state, reward, next_state, terminated) 
                 
                 self.state = deepcopy(next_state)
 
