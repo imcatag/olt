@@ -57,9 +57,6 @@ class Env:
             second_next_possible_states = None
 
             while True:
-                # if _ == 5 and self.state.board.maxHeight >= 10:
-                #     print("here")
-
                 possible_next_states = (
                     second_next_possible_states
                     if second_next_possible_states != None
@@ -84,9 +81,6 @@ class Env:
                 )
 
                 self.state = deepcopy(next_state)
-                self.alpha = 2 / (self.state.board.maxHeight() + 1) # TODO: remove
-
-
-# env = Env()
-
-# env.train()
+                # decreasing the step size as the height of the board increases in order to
+                # prevent assigning negative rewards to line clears / tspins at big heights
+                self.alpha = 2 / (self.state.board.maxHeight() + 1) 

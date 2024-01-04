@@ -18,8 +18,8 @@ state = GameState(board, pieceQueue[0])
 
 
 def get_approx_Q(state: GameState, weights) -> float:
-        features = env.normalize_features(state.features)
-        return sum([weights[i] * features[i] for i in range(len(weights))])
+    features = env.normalize_features(state.features)
+    return sum([weights[i] * features[i] for i in range(len(weights))])
 
 
 while True:
