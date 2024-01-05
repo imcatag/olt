@@ -4,4 +4,4 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 agent = DQNAgent(play_mode=True)
 
-agent.play(weights_path='weights/episode_2800')
+agent.play(weights_path='weights/episode_1000')

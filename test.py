@@ -6,7 +6,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 class TestAgent(unittest.TestCase):
 
-    def get_agent(self, weights_path='weights/episode_3000.hdf5'):
+    def get_agent(self, weights_path='weights/episode_950.hdf5'):
         agent = DQNAgent(play_mode=True)
         agent.model.load_weights(weights_path)
         return agent
@@ -33,7 +33,7 @@ class TestAgent(unittest.TestCase):
         
         next_states = [x[0] for x in next_states]
 
-        predicted_board = agent.get_best_state(next_states).board.board
+        predicted_board = agent.get_play_best_state(next_states).board.board
 
         print(*predicted_board, sep='\n')
 
@@ -61,7 +61,7 @@ class TestAgent(unittest.TestCase):
 
         next_states = [x[0] for x in next_states]
 
-        predicted_board = agent.get_best_state(next_states).board.board
+        predicted_board = agent.get_play_best_state(next_states).board.board
 
         print(*predicted_board, sep='\n')
         expected_board = Board(10, 40, exp2).board
@@ -88,7 +88,7 @@ class TestAgent(unittest.TestCase):
 
         next_states = [x[0] for x in next_states]
 
-        predicted_board = agent.get_best_state(next_states).board.board
+        predicted_board = agent.get_play_best_state(next_states).board.board
 
         print(*predicted_board, sep='\n')
         expected_board = Board(10, 40, exp3).board
@@ -99,7 +99,7 @@ class TestAgent(unittest.TestCase):
         agent = self.get_agent()
         agent.state = GameState(Board(10, 40, l4), Piece.T, Piece.I, 0)
 
-        predicted_board = agent.get_best_state(agent.state.generateChildren()).board.board
+        predicted_board = agent.get_play_best_state(agent.state.generateChildren()).board.board
         expected_board = Board(10, 40, exp4).board
         
         self.assertEqual(predicted_board, expected_board)
@@ -108,7 +108,7 @@ class TestAgent(unittest.TestCase):
         agent = self.get_agent()
         agent.state = GameState(Board(10, 40, l5), Piece.T, Piece.I, 0)
 
-        predicted_board = agent.get_best_state(agent.state.generateChildren()).board.board
+        predicted_board = agent.get_play_best_state(agent.state.generateChildren()).board.board
         expected_board = Board(10, 40, exp5).board
         
         self.assertEqual(predicted_board, expected_board)
@@ -117,7 +117,7 @@ class TestAgent(unittest.TestCase):
         agent = self.get_agent()
         agent.state = GameState(Board(10, 40, l6), Piece.L, Piece.T, 0)
 
-        predicted_board = agent.get_best_state(agent.state.generateChildren()).board.board
+        predicted_board = agent.get_play_best_state(agent.state.generateChildren()).board.board
         expected_board = Board(10, 40, exp6).board
         
         self.assertEqual(predicted_board, expected_board)
@@ -126,7 +126,7 @@ class TestAgent(unittest.TestCase):
         agent = self.get_agent()
         agent.state = GameState(Board(10, 40, l7), Piece.Z, Piece.T, 0)
 
-        predicted_board = agent.get_best_state(agent.state.generateChildren()).board.board
+        predicted_board = agent.get_play_best_state(agent.state.generateChildren()).board.board
         expected_board = Board(10, 40, exp7).board
         
         self.assertEqual(predicted_board, expected_board)

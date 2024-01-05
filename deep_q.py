@@ -55,7 +55,13 @@ class DQNAgent:
         input_data = self.get_model_input_from_repr(game_state_repr)
         return self.model(input_data)
 
-    def get_best_state(self, next_states: List["GameState"]) -> GameState:
+    def get_play_best_state(self, next_states: List["GameState"]) -> GameState:
+        next_states_input_data = np.array([self.get_model_input_from_repr(next_state.get_game_repr()) for next_state in next_states]) 
+        next_states_input_data = next_states_input_data.reshape((len(next_states_input_data), 20, 20, 1)) 
+        predictions = self.model.predict_on_batch(next_states_input_data) 
+        return max(enumerate(next_states), key = lambda x: predictions[x[0]])[1]
+
+    def get_train_best_state(self, next_states: List["GameState"]) -> GameState:
         next_states_input_data = np.array([self.get_model_input_from_repr(next_state.get_game_repr()) for next_state in next_states])
         next_states_input_data = next_states_input_data.reshape((len(next_states_input_data), 20, 20, 1))
         predictions = self.model.predict_on_batch(next_states_input_data)
@@ -83,13 +89,11 @@ class DQNAgent:
             return zipped[1][0]
         else:
             return zipped[2][0]
-        
-        return max(enumerate(next_states), key = lambda x: predictions[x[0]])[1]
 
     def get_next_state(self, next_states: List["GameState"]) -> GameState:
         if random.uniform(0, 1) < self.exploration_prob:
             return random.choice(next_states)
-        return self.get_best_state(next_states)
+        return self.get_train_best_state(next_states)
 
     def update_exploration_probability(self):
         self.exploration_prob = max(self.exploration_prob * np.exp(
@@ -155,7 +159,7 @@ class DQNAgent:
 
                 if ep <= 275:
                     self.store_episode(self.state, reward, next_state, terminated) 
-                elif next_state.features[4] <= 10 or random.uniform(0, 1) < self.exploration_prob:
+                elif next_state.features[4] <= 10 or random.uniform(0, 1) < 0.25:
                     self.store_episode(self.state, reward, next_state, terminated) 
                 
                 self.state = deepcopy(next_state)
@@ -186,6 +190,6 @@ class DQNAgent:
             if len(next_possible_states) == 0:
                 break
 
-            next_state = self.get_best_state(next_possible_states)
+            next_state = self.get_play_best_state(next_possible_states)
             print(state)
             state = deepcopy(next_state)
