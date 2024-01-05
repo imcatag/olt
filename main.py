@@ -168,6 +168,9 @@ class Board:
             self.board = [[0 for _ in range(width)] for _ in range(height)]
         else:
             self.board = deepcopy(board)
+            # add lines to board if not enough lines
+            while len(self.board) < height:
+                self.board += [[0 for _ in range(width)]]
 
     def maxHeight(self) -> int:
         for i in range(self.height - 1, -1, -1):
