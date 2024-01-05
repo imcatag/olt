@@ -1,7 +1,8 @@
 from main import * 
 from deep_q import *
 import time 
- 
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 total_piece_count = 0 
 total_reward = 0 
 total_max_heights = 0 
@@ -10,7 +11,7 @@ pieces_per_run = 1000
  
 for _ in range(no_different_runs): 
     agent = DQNAgent(play_mode=True)
-    agent.model.load_weights('weights/episode_900.hdf5')
+    agent.model.load_weights('weights/episode_3000.hdf5')
     pieceQueue = []
     for _ in range(300):
         shuffle(defaultbag)

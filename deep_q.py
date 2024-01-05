@@ -1,11 +1,16 @@
 import random
 import numpy as np
+import time
 from main import *
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten
 
+def softmax(values):
+    exp_values = np.exp(values - np.max(values))  # Subtracting the maximum value for numerical stability
+    probabilities = exp_values / np.sum(exp_values)
+    return probabilities
 
 class DQNAgent:
     def __init__(self, input_shape = (20, 20, 1), play_mode=False):
@@ -54,6 +59,31 @@ class DQNAgent:
         next_states_input_data = np.array([self.get_model_input_from_repr(next_state.get_game_repr()) for next_state in next_states])
         next_states_input_data = next_states_input_data.reshape((len(next_states_input_data), 20, 20, 1))
         predictions = self.model.predict_on_batch(next_states_input_data)
+        
+        zipped = list(zip(next_states, predictions))
+        zipped.sort(key=lambda x: x[1], reverse=True)
+       
+        # 70% chance to choose top move, 30% chance to choose randomly from top 3
+        r1 = random.uniform(0, 1)
+        if r1 < 0.9:
+            return zipped[0][0]
+        
+        # choose a random state from the top 3 using softmax
+        predictions = np.array([x[1] for x in zipped[:3]])
+        predictions = softmax(predictions)
+
+        # print(predictions)
+        # time.sleep(1)
+
+        r2 = random.uniform(0, 1)
+
+        if r2 < predictions[0]:
+            return zipped[0][0]
+        elif r2 < predictions[0] + predictions[1]:
+            return zipped[1][0]
+        else:
+            return zipped[2][0]
+        
         return max(enumerate(next_states), key = lambda x: predictions[x[0]])[1]
 
     def get_next_state(self, next_states: List["GameState"]) -> GameState:

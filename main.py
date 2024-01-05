@@ -15,7 +15,7 @@ class Piece(Enum):
     Z = 6
     NULLPIECE = 7
 
-weights = {'lineClears' : [0, -1.5, -1.5, -1, 5], 'TSpin' : [0, 4, 8, 16] , 'TSpinMini' : [0, 1, 1], 'wellKnown' : 6, 'perfectClear' : 10, 'height': -0.4, 'spikiness' : -0.5, 'covered' : -0.4, 'gaps' : -1.5, 'wastedT' : -2}
+weights = {'lineClears' : [0, -2, -2, -2, 10], 'TSpin' : [0, 5, 15, 25] , 'TSpinMini' : [0, 0, 0], 'wellKnown' : 6, 'perfectClear' : 10, 'height': 0, 'overHalf': -0.3, 'spikiness' : -0.5, 'covered' : -1, 'gaps' : -2, 'wastedT' : -2}
 
 class Vector2Int:
     # has x and y
@@ -54,7 +54,7 @@ globalHeight = 40
 defaultbag = [Piece.T, Piece.J, Piece.Z, Piece.O, Piece.S, Piece.L, Piece.I]
 pieceQueue = []
 
-for i in range(50000):
+for i in range(200000):
     shuffle(defaultbag)
     pieceQueue += defaultbag
 
@@ -311,9 +311,13 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
     # if piece is T and last move was rotation, check for T-Spin
     tspin = False
     tspinmini = False
+    wastedT = False
+    if placement.piece == Piece.T:
+        wastedT = True
+
     if placement.piece == Piece.T and (placement.path[-1].type == "CW" or placement.path[-1].type == "CCW"):
         # check for fin and overhang T-Spin
-        if (placement.rotation == 2 or placement.rotation == 0) and placement.path[-1].offset == 4:
+        if (placement.rotation == 3 or placement.rotation == 1) and placement.path[-1].offset == 4:
             tspin = True
         else:
             # get number of corners filled
@@ -401,6 +405,11 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
         for j in range(newBoard.width):
             gaps += (newBoard.board[i][j] == 0) and (newBoard.board[i+1][j] == 1)
 
+    # calculate 1s over half height
+    overHalf = 0
+    for i in range(newBoard.width):
+        overHalf += max(0, heights[i] - maxHeight//2)
+
     # look for well knows T spin setups
     # 101
     # 000
@@ -421,8 +430,8 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
                 break
 
     features = [linesCleared, spikiness, covered, gaps, maxHeight, perfectClear, -1 if not tspin else linesCleared, 0 if not tspinmini else linesCleared]
-    score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + perfectClear * weights['perfectClear'] + gaps * weights['gaps'] + wellKnown * weights['wellKnown']
-    wastedT = True
+    score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + weights['overHalf'] * overHalf + perfectClear * weights['perfectClear'] + gaps * weights['gaps'] + wellKnown * weights['wellKnown']
+    
     if tspin:
         score += weights['TSpin'][linesCleared]
         if linesCleared:
@@ -497,7 +506,6 @@ class GameState:
             for j in range(4):
                 cell = position_for_hold_piece + Cells[self.heldPiece][0][j]
                 game_state_repr[cell.y][cell.x] = 1
-
         if len(self.features) == 0:
             return game_state_repr
         

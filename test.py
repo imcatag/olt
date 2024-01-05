@@ -6,7 +6,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 class TestAgent(unittest.TestCase):
 
-    def get_agent(self, weights_path='weights/episode_900.hdf5'):
+    def get_agent(self, weights_path='weights/episode_3000.hdf5'):
         agent = DQNAgent(play_mode=True)
         agent.model.load_weights(weights_path)
         return agent
@@ -22,12 +22,12 @@ class TestAgent(unittest.TestCase):
         predictions = agent.model.predict_on_batch(next_states_input_data)
         next_states = sorted(zip(next_states, predictions), key=lambda x: x[1], reverse=True)[:3]
 
-        print()
+        print(next_states)
         for i, s in enumerate(next_states):
             # print board and evaluation
             print(*s[0].get_game_repr(), sep='\n')
             print(s[0].features)
-            print(s[0].evaluation, predictions[i])
+            print(s[0].evaluation, next_states[i][1])
             print()
 
         
@@ -56,7 +56,7 @@ class TestAgent(unittest.TestCase):
         for i, s in enumerate(next_states):
             # print board and evaluation
             print(*s[0].get_game_repr(), sep='\n')
-            print(s[0].evaluation, predictions[i])
+            print(s[0].evaluation, next_states[i][1])
             print()
 
         next_states = [x[0] for x in next_states]
@@ -83,7 +83,7 @@ class TestAgent(unittest.TestCase):
         for i, s in enumerate(next_states):
             # print board and evaluation
             print(*s[0].get_game_repr(), sep='\n')
-            print(s[0].evaluation, predictions[i])
+            print(s[0].evaluation, next_states[i][1])
             print()
 
         next_states = [x[0] for x in next_states]
