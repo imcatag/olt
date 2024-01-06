@@ -11,7 +11,7 @@ pieces_per_run = 1000
  
 for _ in range(no_different_runs): 
     agent = DQNAgent(play_mode=True)
-    agent.model.load_weights('weights/episode_1025.hdf5')
+    agent.model.load_weights('weights/episode_3775.hdf5')
     pieceQueue = []
     for _ in range(300):
         shuffle(defaultbag)

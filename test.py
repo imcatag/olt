@@ -6,7 +6,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 class TestAgent(unittest.TestCase):
 
-    def get_agent(self, weights_path='weights/episode_950.hdf5'):
+    def get_agent(self, weights_path='safer_tspin.hdf5'):
         agent = DQNAgent(play_mode=True)
         agent.model.load_weights(weights_path)
         return agent

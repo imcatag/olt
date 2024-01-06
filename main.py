@@ -15,7 +15,7 @@ class Piece(Enum):
     Z = 6
     NULLPIECE = 7
 
-weights = {'lineClears' : [0, -2, -2, -2, 10], 'TSpin' : [0, 5, 15, 25] , 'TSpinMini' : [0, 0, 0], 'wellKnown' : 6, 'perfectClear' : 10, 'height': 0, 'overHalf': -0.3, 'spikiness' : -0.5, 'covered' : -1, 'gaps' : -2, 'wastedT' : -2}
+weights = {'lineClears' : [0, -2, -2, -2, 15], 'TSpin' : [0, 5, 15, 25] , 'TSpinMini' : [0, 0, 0], 'wellKnown' : 6, 'perfectClear' : 18, 'height': 0, 'overHalf': -0.1, 'spikiness' : -0.5, 'covered' : -1, 'gaps' : -2, 'wastedT' : -2}
 
 class Vector2Int:
     # has x and y

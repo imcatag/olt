@@ -13,14 +13,14 @@ def softmax(values):
     return probabilities
 
 class DQNAgent:
-    def __init__(self, input_shape = (20, 20, 1), play_mode=False):
+    def __init__(self, input_shape = (20, 20, 1), play_mode=False, model_name = 'NONE'):
         self.empty_board = Board()
         self.state = GameState(self.empty_board, pieceQueue[0])
         self.lr = 0.001
         self.gamma = 0.95
-        self.exploration_prob = 1.0
-        self.exploration_prob_decay = 0.003
-        self.min_exploration_prob = 0.1
+        self.exploration_prob = 0.25
+        self.exploration_prob_decay = 0.002
+        self.min_exploration_prob = 0.05
         self.batch_size = 64
         self.total_steps = 0
         self.play_mode = play_mode
@@ -30,7 +30,6 @@ class DQNAgent:
         # a list of dictionaries that store (s_t, a_t, r_t, s_t+1)
         self.memory_buffer = list()
         self.max_memory_buffer = 3000
-
         # Define a model that returns the expected value of the given state + action
         self.model = Sequential([
             Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=input_shape),
@@ -46,6 +45,10 @@ class DQNAgent:
             self.model.summary()
 
         self.model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])  # RMSProp could be another choice here
+
+        if model_name != 'NONE':
+            self.model.load_weights('unsafe_good.hdf5')
+            
 
     def get_model_input_from_repr(self, state_repr: List[List[int]]):
         return np.array(state_repr).reshape(-1, 20, 20, 1)
@@ -132,7 +135,7 @@ class DQNAgent:
         self.model.fit(np.array(training_data), np.array(training_labels))
 
     def train(self, n_episodes=10):
-        for ep in range(1, n_episodes + 1):
+        for ep in range(3001, n_episodes + 3001):
             print('<------------------------------->')
             print('episode: ', ep)
             print('exploration rate: ', self.exploration_prob)
@@ -175,7 +178,7 @@ class DQNAgent:
         self.model.save_weights('recent_weights.hdf5')
 
     def play(self, weights_path='recent_weights'):
-        self.model.load_weights(f'{weights_path}.hdf5')
+        self.model.load_weights(f'{weights_path}')
         pieceQueue = []
         for _ in range(10000):
             shuffle(defaultbag)
