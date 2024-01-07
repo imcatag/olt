@@ -18,9 +18,9 @@ class DQNAgent:
         self.state = GameState(self.empty_board, pieceQueue[0])
         self.lr = 0.001
         self.gamma = 0.95
-        self.exploration_prob = 0.25
+        self.exploration_prob = 1
         self.exploration_prob_decay = 0.002
-        self.min_exploration_prob = 0.05
+        self.min_exploration_prob = 0.1
         self.batch_size = 64
         self.total_steps = 0
         self.play_mode = play_mode
@@ -135,7 +135,7 @@ class DQNAgent:
         self.model.fit(np.array(training_data), np.array(training_labels))
 
     def train(self, n_episodes=10):
-        for ep in range(3001, n_episodes + 3001):
+        for ep in range(1, n_episodes + 1):
             print('<------------------------------->')
             print('episode: ', ep)
             print('exploration rate: ', self.exploration_prob)
@@ -162,7 +162,7 @@ class DQNAgent:
 
                 if ep <= 275:
                     self.store_episode(self.state, reward, next_state, terminated) 
-                elif next_state.features[4] <= 10 or random.uniform(0, 1) < 0.25:
+                elif next_state.features[4] <= 10 or random.uniform(0, 1) < 0.36:
                     self.store_episode(self.state, reward, next_state, terminated) 
                 
                 self.state = deepcopy(next_state)
