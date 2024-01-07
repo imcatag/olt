@@ -47,7 +47,7 @@ class DQNAgent:
         self.model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])  # RMSProp could be another choice here
 
         if model_name != 'NONE':
-            self.model.load_weights('unsafe_good.hdf5')
+            self.model.load_weights(model_name)
             
 
     def get_model_input_from_repr(self, state_repr: List[List[int]]):

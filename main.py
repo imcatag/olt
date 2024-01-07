@@ -299,7 +299,13 @@ class Board:
             
         return finalPlacements
 
-def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, List[float]):
+    def addGarbage(self, lines):
+        hole = randint(0, self.width - 1)
+        line = [1 if j != hole else 0 for j in range(self.width)]
+        lines = [deepcopy(line) for _ in range(lines)]
+        self.board = lines + self.board[:-len(lines)]
+
+def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, List[float], int, int):
     newBoard = Board(board.width, board.height, board.board)
     score = 0
 
@@ -431,7 +437,7 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
 
     features = [linesCleared, spikiness, covered, gaps, maxHeight, perfectClear, -1 if not tspin else linesCleared, 0 if not tspinmini else linesCleared]
     score = weights['spikiness'] * spikiness + weights['covered'] * covered + weights['height'] * maxHeight + weights['overHalf'] * overHalf + perfectClear * weights['perfectClear'] + gaps * weights['gaps'] + wellKnown * weights['wellKnown']
-    
+    linesSent = 0
     if tspin:
         score += weights['TSpin'][linesCleared]
         if linesCleared:
@@ -444,11 +450,20 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
                 f.write("\n")
                 f.write("\n")
             wastedT = False
+            linesSent = linesCleared * 2
     elif tspinmini:
         score += weights['TSpinMini'][linesCleared]
+        linesSent = linesCleared
     else:
         score += weights['lineClears'][linesCleared]
-
+        if linesCleared == 2:
+            linesSent = 1
+        elif linesCleared == 3:
+            linesSent = 2
+        elif linesCleared == 4:
+            linesSent = 4
+    if perfectClear:
+        linesSent += 10
     score += weights['wastedT'] * wastedT
     # 1/20 chance to recieve 4 lines of garbage
     # 1/10 chance to recieve 1 line of garbage
@@ -471,16 +486,18 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
 
     #     newBoard.board = ([deepcopy(garbageLine)] + newBoard.board)[:-1]
 
-    return (newBoard, score, features)
+    return (newBoard, score, features, linesCleared, linesSent)
 
 class GameState:
-    def __init__(self, board: Board, piece: Piece, heldPiece: Piece = Piece.NULLPIECE, pieceCount: int = 0, evaluation : float = 0, features: List[float] = []):
+    def __init__(self, board: Board, piece: Piece, heldPiece: Piece = Piece.NULLPIECE, pieceCount: int = 0, evaluation : float = 0, features: List[float] = [], clearing : int = 0, sending : int = 0):
         self.board = board
         self.piece = piece
         self.heldPiece = heldPiece
         self.pieceCount = pieceCount
         self.evaluation = evaluation
         self.features = features
+        self.clearing = clearing
+        self.sending = sending
     
     def get_game_repr(self):
         game_state_width = self.board.height // 2
@@ -533,8 +550,8 @@ class GameState:
         else:
             placements = self.board.findPlacements(self.piece)
             for placement in placements:
-                newBoard, newEvaluation, features = PlacePieceAndEvaluate(self.board, placement)
-                children.append(GameState(newBoard, pieceQueue[self.pieceCount + 1], self.heldPiece, self.pieceCount + 1, newEvaluation, features))
+                newBoard, newEvaluation, features, linesCleared, linesSent = PlacePieceAndEvaluate(self.board, placement)
+                children.append(GameState(newBoard, pieceQueue[self.pieceCount + 1], self.heldPiece, self.pieceCount + 1, newEvaluation, features, linesCleared, linesSent))
                 
         
         if self.heldPiece == Piece.NULLPIECE:
@@ -546,8 +563,8 @@ class GameState:
             placements = newState.board.findPlacements(newState.piece, True)
 
             for placement in placements:
-                newBoard, newEvaluation, features = PlacePieceAndEvaluate(newState.board, placement)
-                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation, features))
+                newBoard, newEvaluation, features, linesCleared, linesSent = PlacePieceAndEvaluate(newState.board, placement)
+                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation, features, linesCleared, linesSent))
 
         if self.heldPiece != Piece.NULLPIECE:
             # hold piece becomes current piece, held piece becomes hold piece
@@ -558,8 +575,8 @@ class GameState:
             placements = newState.board.findPlacements(newState.piece, True)
 
             for placement in placements:
-                newBoard, newEvaluation, features = PlacePieceAndEvaluate(newState.board, placement)
-                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation, features))
+                newBoard, newEvaluation, features, linesCleared, linesSent = PlacePieceAndEvaluate(newState.board, placement)
+                children.append(GameState(newBoard, pieceQueue[newState.pieceCount + 1], newState.heldPiece, newState.pieceCount + 1, newEvaluation, features, linesCleared, linesSent))
 
         return children
 
