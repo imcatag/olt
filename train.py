@@ -1,5 +1,5 @@
 from deep_q import *
 
-agent = DQNAgent(model_name= 'unsafe_good.hdf5')
+agent = DQNAgent()
 
-agent.train(3000)
+agent.train(4200)

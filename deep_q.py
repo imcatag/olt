@@ -6,6 +6,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten
+from keras.optimizers import Adam
 
 def softmax(values):
     exp_values = np.exp(values - np.max(values))  # Subtracting the maximum value for numerical stability
@@ -44,7 +45,7 @@ class DQNAgent:
         if not self.play_mode:
             self.model.summary()
 
-        self.model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])  # RMSProp could be another choice here
+        self.model.compile(optimizer=Adam(learning_rate=0.001), loss='mean_squared_error', metrics=['mae'])  # RMSProp could be another choice here
 
         if model_name != 'NONE':
             self.model.load_weights(model_name)
