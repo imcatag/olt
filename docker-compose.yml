@@ -1,7 +1,0 @@
-version: '3'
-
-services:
-  tensorflow:
-    image: tensorflow/tensorflow:latest-gpu
-    container_name: tensorflow-container
-    
