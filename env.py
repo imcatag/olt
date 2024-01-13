@@ -14,6 +14,8 @@ class Env:
         self.weights = [0.1 for _ in range(7)]
         self.alpha = 0.5
         self.epsilon = 0.05
+        self.piece_count = 0
+        self.weights_saving_number = 500
 
     def step(self):
         # pick an action at random
@@ -53,7 +55,6 @@ class Env:
     def train(self, num_episodes=10, gamma=0.7):
         for _ in range(num_episodes):
             self.state = GameState(self.board, pieceQueue[self.state.pieceCount + 1])
-            print(self.weights)
             second_next_possible_states = None
 
             while True:
@@ -63,6 +64,7 @@ class Env:
                     else self.state.generateChildren()
                 )
                 next_state = self.epsilon_greedy(possible_next_states)
+                print(next_state)
                 current_q = self.get_approx_Q(next_state)
                 reward = next_state.evaluation
                 features = self.normalize_features(next_state.features)
@@ -73,6 +75,7 @@ class Env:
                     self.update_weights(reward - current_q, features)
                     break
 
+                self.piece_count += 1
                 second_next_state = self.epsilon_greedy(second_next_possible_states)
                 next_q = self.get_approx_Q(second_next_state)
                 self.update_weights(
@@ -84,3 +87,8 @@ class Env:
                 # decreasing the step size as the height of the board increases in order to
                 # prevent assigning negative rewards to line clears / tspins at big heights
                 self.alpha = 2 / (self.state.board.maxHeight() + 1) 
+
+                if self.piece_count % self.weights_saving_number == 0:
+                    with open('new_weights.txt', 'a') as output_f:
+                        output_f.write(str(self.weights) + '\n')
+
