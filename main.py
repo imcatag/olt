@@ -441,14 +441,14 @@ def PlacePieceAndEvaluate(board: Board, placement: Placement) -> (Board, float, 
     if tspin:
         score += weights['TSpin'][linesCleared]
         if linesCleared:
-            with open("tspins.txt", "a") as f:
-                f.write(str(board))
-                f.write("\n")
-                f.write(str(newBoard))
-                f.write("\n")
-                f.write(str(placement.path))
-                f.write("\n")
-                f.write("\n")
+            # with open("tspins.txt", "a") as f:
+            #     f.write(str(board))
+            #     f.write("\n")
+            #     f.write(str(newBoard))
+            #     f.write("\n")
+            #     f.write(str(placement.path))
+            #     f.write("\n")
+            #     f.write("\n")
             wastedT = False
             linesSent = linesCleared * 2
     elif tspinmini:
