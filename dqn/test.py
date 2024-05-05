@@ -72,6 +72,32 @@ class TestAgent(unittest.TestCase):
         
         self.assertEqual(predicted_board, expected_board)
 
+    def test_l8(self):
+        agent = self.get_agent()
+        agent.state = GameState(Board(10, 40, l8), Piece.Z, Piece.I, 0)
+
+        predicted_board = agent.get_play_best_state(agent.state.generateChildren()).board.board
+        expected_board = Board(10, 40, exp8).board
+        
+        self.assertEqual(predicted_board, expected_board)
+
+    def test_l9(self):
+        agent = self.get_agent()
+        agent.state = GameState(Board(10, 40, l9), Piece.O, Piece.I, 0)
+
+        predicted_board = agent.get_play_best_state(agent.state.generateChildren()).board.board
+        expected_board = Board(10, 40, exp9).board
+        
+        self.assertEqual(predicted_board, expected_board)
+
+    def test_l10(self):
+        agent = self.get_agent()
+        agent.state = GameState(Board(10, 40, l10), Piece.O, Piece.I, 0)
+
+        predicted_board = agent.get_play_best_state(agent.state.generateChildren()).board.board
+        expected_board = Board(10, 40, exp10).board
+        
+        self.assertEqual(predicted_board, expected_board)
 
 if __name__ == '__main__':
     unittest.main()
